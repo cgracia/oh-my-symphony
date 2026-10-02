@@ -8958,7 +8958,42 @@ class Orchestrator:
             # remote state-move while paused would tear the worker down,
             # `_on_worker_exit` would clear the wakeup event, and the
             # ticket would auto-unpause through retry-or-release.
+            # Stage ownership is the one exception: a worker that crashed
+            # after self-driving its ticket across foreign lanes (the
+            # auto-pause fires on worker error) must not be able to park
+            # the ticket in an unauthorized lane while paused. The clamp
+            # does not unpause or reschedule anything — the operator's
+            # hold survives; only the board position is corrected.
             if self.is_paused(issue.id):
+                paused_target = _stage_ownership_rewind_state(
+                    cfg,
+                    issue,
+                    from_state=entry.authorized_state or entry.issue.state or "",
+                    to_state=issue.state or "",
+                    worker_kind=entry.agent_kind,
+                )
+                if paused_target is not None:
+                    try:
+                        entry.issue = await self._clamp_stage_ownership(
+                            cfg=cfg,
+                            issue=issue,
+                            from_state=entry.authorized_state
+                            or entry.issue.state
+                            or "",
+                            observed_state=issue.state or "",
+                            target_state=paused_target,
+                            worker_kind=entry.agent_kind or cfg.agent.kind,
+                            site="reconcile_paused",
+                        )
+                    except Exception as exc:
+                        log.warning(
+                            "stage_ownership_clamp_failed",
+                            issue_id=issue.id,
+                            identifier=issue.identifier,
+                            site="reconcile_paused",
+                            error=str(exc),
+                        )
+                        self._record_tracker_error(issue.id, exc)
                 continue
             # R8 — one issue's cleanup failure (workspace op, merge gate)
             # must not abort reconciliation for the rest of the board.

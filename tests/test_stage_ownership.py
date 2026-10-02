@@ -722,6 +722,38 @@ def test_reconcile_clamp_uses_authorized_state_not_laundered_snapshot(
     assert ("Human Review", "Verify") in updates
 
 
+def test_reconcile_paused_self_drive_still_clamps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A worker that crashed after self-driving must not park while paused.
+
+    Worker errors auto-pause the ticket; the pause must protect the
+    operator's hold, not the unauthorized board position. The GH-165
+    worker exited 255 immediately after moving its own ticket to Human
+    Review — without this guard the false terminal survives the pause.
+    """
+    o, entry, updates, notes = _reconcile_setup(
+        tmp_path,
+        monkeypatch,
+        board_state="Human Review",
+        entry_state="In Progress",
+        authorized_state="In Progress",
+    )
+    cfg = _make_config(stage_kinds=_STAGE_KINDS)
+    issue = _make_issue("Human Review")
+
+    async def _run() -> None:
+        o._paused_issue_ids.add(issue.id)
+        await o._reconcile_running(cfg)
+
+    asyncio.run(_run())
+
+    assert ("Human Review", "Verify") in updates
+    assert entry.issue.state == "Verify"
+    # The operator's pause survives the clamp.
+    assert o.is_paused(issue.id)
+
+
 def test_reconcile_legal_adjacent_advance_never_clamps(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
