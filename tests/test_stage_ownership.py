@@ -21,6 +21,12 @@ Semantics under test (v0.26.x):
 3. A pinned ticket (explicit `agent_kind`) stays human-authoritative.
 4. Boards without `stage_kinds` keep today's semantics.
 5. Single forward steps and same-kind crossings remain legal.
+6. Fail-closed exit validation: when the exit-site check (or its clamp)
+   hits a transient tracker failure after the running entry was popped,
+   a pending `ExitOwnershipCheck` keeps a retryable observer alive and
+   the reconcile tick re-attempts it every poll until the board state
+   is validated or clamped — an unauthorized terminal is never left
+   standing unobserved.
 """
 
 from __future__ import annotations
@@ -885,3 +891,178 @@ def test_reconcile_legal_adjacent_advance_never_clamps(
     assert not reconcile_cancelled
     # The active branch snapshot still runs for legal advances.
     assert entry.issue.state == "Verify"
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed exit validation (transient tracker failures at the exit site)
+# ---------------------------------------------------------------------------
+
+
+def _exit_failure_setup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    refresh_issue: Issue | None,
+) -> tuple[Orchestrator, RunningEntry, list[tuple[str, str]], list[str], ServiceConfig]:
+    cfg = _make_config(stage_kinds=_STAGE_KINDS)
+    o = _orch(tmp_path)
+    entry = _seed_running_entry(
+        o,
+        _make_issue("In Progress"),
+        tmp_path,
+        agent_kind="codex",
+        authorized_state="In Progress",
+    )
+
+    updates: list[tuple[str, str]] = []
+    notes: list[str] = []
+    monkeypatch.setattr(
+        Orchestrator,
+        "_tracker_call_update_state",
+        staticmethod(lambda _cfg, issue_arg, target: updates.append((issue_arg.state, target))),
+    )
+    monkeypatch.setattr(
+        Orchestrator,
+        "_tracker_call_append_note",
+        staticmethod(lambda _cfg, issue_arg, heading, body: notes.append(heading)),
+    )
+    monkeypatch.setattr(
+        o._workflow_state, "current", lambda: cfg  # type: ignore[assignment]
+    )
+
+    async def _fake_refresh(self, cfg_arg, issue_id):  # noqa: ANN001
+        del self, cfg_arg, issue_id
+        return refresh_issue
+
+    monkeypatch.setattr(Orchestrator, "_refresh_issue_state", _fake_refresh)
+    return o, entry, updates, notes, cfg
+
+
+def test_worker_exit_refresh_failure_parks_pending_and_drain_recovers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exit-255 self-drive whose final refresh fails on a transient error.
+
+    The exit must not accept the unauthorized terminal: it parks a
+    pending `ExitOwnershipCheck` (the popped entry left no other
+    observer) and the reconcile tick later completes the clamp once the
+    tracker recovers — the deterministic recovery path.
+    """
+    # Refresh unavailable at exit time.
+    o, entry, updates, notes, cfg = _exit_failure_setup(
+        tmp_path, monkeypatch, refresh_issue=None
+    )
+
+    async def _exit() -> None:
+        await o._on_worker_exit("iss-1", "error", "simulated exit 255")
+
+    asyncio.run(_exit())
+
+    # No clamp fired; the exit completed its accounting without
+    # accepting the board position, and the pending check keeps the
+    # observation alive.
+    assert updates == []
+    assert "iss-1" not in o._running
+    check = o._exit_ownership_pending.get("iss-1")
+    assert check is not None
+    assert check.authorized_state == "In Progress"
+    assert check.agent_kind == "codex"
+
+    # Tracker recovers: the next reconcile tick drains the pending
+    # check and performs the clamp the exit could not.
+    async def _recovered_refresh(self, cfg_arg, issue_id):  # noqa: ANN001
+        del self, cfg_arg, issue_id
+        return _make_issue("Human Review")
+
+    monkeypatch.setattr(Orchestrator, "_refresh_issue_state", _recovered_refresh)
+
+    async def _reconcile() -> None:
+        await o._reconcile_running(cfg)
+
+    asyncio.run(_reconcile())
+
+    assert updates == [("Human Review", "Verify")]
+    assert notes == ["Stage Ownership"]
+    assert "iss-1" not in o._exit_ownership_pending
+
+
+def test_worker_exit_clamp_failure_parks_pending_and_drain_retries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Exit-255 self-drive whose clamp write fails at the exit site.
+
+    Same invariant from the write side: the failed clamp must leave the
+    pending check (not silently accept the advance), and the drain
+    retries the clamp on every reconcile tick until the write lands.
+    """
+    o, entry, updates, notes, cfg = _exit_failure_setup(
+        tmp_path, monkeypatch, refresh_issue=_make_issue("Human Review")
+    )
+    note_fails = {"yes": True}
+    real_note_recorder = notes
+
+    def _flaky_note(_cfg: Any, issue_arg: Any, heading: str, body: str) -> None:
+        if note_fails["yes"]:
+            raise RuntimeError("board write unavailable")
+        real_note_recorder.append(heading)
+
+    monkeypatch.setattr(
+        Orchestrator, "_tracker_call_append_note", staticmethod(_flaky_note)
+    )
+
+    async def _exit() -> None:
+        await o._on_worker_exit("iss-1", "error", "simulated exit 255")
+
+    asyncio.run(_exit())
+
+    # The clamp write failed at the exit site; nothing was accepted and
+    # the pending check survives a failed drain attempt.
+    assert updates == []
+    assert "iss-1" in o._exit_ownership_pending
+
+    async def _reconcile() -> None:
+        await o._reconcile_running(cfg)
+
+    asyncio.run(_reconcile())  # drain retries, write still failing
+    assert updates == []
+    assert "iss-1" in o._exit_ownership_pending
+
+    note_fails["yes"] = False
+    asyncio.run(_reconcile())  # write lands: pending clears
+    assert updates == [("Human Review", "Verify")]
+    assert notes == ["Stage Ownership"]
+    assert "iss-1" not in o._exit_ownership_pending
+
+
+def test_pending_drain_discards_when_state_is_legitimate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pending check whose board state no longer demands a clamp is
+    discarded — an operator (or a later legal transition) that already
+    moved the ticket is not re-clamped forever."""
+    o, entry, updates, notes, cfg = _exit_failure_setup(
+        tmp_path, monkeypatch, refresh_issue=None
+    )
+
+    async def _exit() -> None:
+        await o._on_worker_exit("iss-1", "error", "simulated exit 255")
+
+    asyncio.run(_exit())
+    assert "iss-1" in o._exit_ownership_pending
+
+    async def _moved_refresh(self, cfg_arg, issue_id):  # noqa: ANN001
+        del self, cfg_arg, issue_id
+        return _make_issue("Verify")
+
+    monkeypatch.setattr(Orchestrator, "_refresh_issue_state", _moved_refresh)
+
+    async def _reconcile() -> None:
+        await o._reconcile_running(cfg)
+
+    asyncio.run(_reconcile())
+
+    assert updates == []
+    assert "iss-1" not in o._exit_ownership_pending

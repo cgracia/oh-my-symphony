@@ -194,6 +194,27 @@ class RetryEntry:
     touched_files: frozenset[str] = frozenset()
 
 
+@dataclass(frozen=True)
+class ExitOwnershipCheck:
+    """A worker exit whose board state could not be ownership-validated.
+
+    `handle_worker_exit` pops the running entry before it can compare the
+    final board state against the lane that session was authorized for.
+    When that comparison (or the clamp it demands) fails on a transient
+    tracker error, the record keeps the observation alive: the reconcile
+    tick re-attempts it every poll until the board state is validated or
+    clamped, so an unauthorized terminal cannot stand unobserved. One
+    record per issue id — a later exit replaces an earlier one — so the
+    registry is bounded by the board.
+    """
+
+    issue_id: str
+    identifier: str
+    authorized_state: str
+    agent_kind: str
+    failed_site: str = "worker_exit"
+
+
 @dataclass
 class _CodexTotals:
     input_tokens: int = 0

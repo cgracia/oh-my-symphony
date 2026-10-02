@@ -51,7 +51,7 @@ from ..logging import get_logger
 from ..workflow import ServiceConfig
 from ..workspace import HISTORY_PUSH_FAILED, HistoryGateResult
 from .constants import CONTINUATION_RETRY_DELAY_MS, RETRY_BASE_MS
-from .entries import RunningEntry, _IssueDebug
+from .entries import ExitOwnershipCheck, RunningEntry, _IssueDebug
 from .helpers import (
     _max_turns_exhausted_target_state,
     _stage_ownership_rewind_state,
@@ -122,11 +122,19 @@ async def handle_worker_exit(
     # was authorized for and clamp unauthorized crossings. Reconcile-
     # owned cancellations already clamped (or deliberately accepted)
     # before cancelling, so they are skipped here.
+    #
+    # Fail-closed: this pop removed the ticket's only observer, and a
+    # terminal card is never re-dispatched. If the validation cannot
+    # complete — the refresh raises or returns None, or the clamp write
+    # fails — park an `ExitOwnershipCheck` so the reconcile tick keeps
+    # retrying (see `_drain_exit_ownership_pending`). The unauthorized
+    # board position is never silently accepted as final.
     if cfg is not None and reason != "cancelled":
         try:
             refreshed = await orch._refresh_issue_state(cfg, issue_id)
         except Exception:
             refreshed = None
+        validated = False
         if refreshed is not None:
             ownership_target = _stage_ownership_rewind_state(
                 cfg,
@@ -135,7 +143,9 @@ async def handle_worker_exit(
                 to_state=refreshed.state or "",
                 worker_kind=entry.agent_kind,
             )
-            if ownership_target is not None:
+            if ownership_target is None:
+                validated = True
+            else:
                 try:
                     entry.issue = await orch._clamp_stage_ownership(
                         cfg=cfg,
@@ -146,6 +156,7 @@ async def handle_worker_exit(
                         worker_kind=entry.agent_kind or cfg.agent.kind,
                         site="worker_exit",
                     )
+                    validated = True
                 except Exception as exc:
                     log.warning(
                         "stage_ownership_clamp_failed",
@@ -155,6 +166,24 @@ async def handle_worker_exit(
                         error=str(exc),
                     )
                     orch._record_tracker_error(issue_id, exc)
+        if validated:
+            orch._exit_ownership_pending.pop(issue_id, None)
+        else:
+            orch._exit_ownership_pending[issue_id] = ExitOwnershipCheck(
+                issue_id=issue_id,
+                identifier=entry.issue.identifier,
+                authorized_state=entry.authorized_state
+                or entry.issue.state
+                or "",
+                agent_kind=entry.agent_kind or cfg.agent.kind,
+                failed_site="worker_exit",
+            )
+            log.warning(
+                "exit_ownership_check_pending",
+                issue_id=issue_id,
+                identifier=entry.issue.identifier,
+                site="worker_exit",
+            )
     debug = _record_exit_accounting(orch, issue_id, entry, reason, error)
 
     if terminal_cancelled:

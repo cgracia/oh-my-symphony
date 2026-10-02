@@ -134,7 +134,13 @@ from .release_cycle import (
     release_verifier_state as _release_verifier_state,
 )
 from .dispatch_state import DispatchState
-from .entries import RetryEntry, RunningEntry, _CodexTotals, _IssueDebug
+from .entries import (
+    ExitOwnershipCheck,
+    RetryEntry,
+    RunningEntry,
+    _CodexTotals,
+    _IssueDebug,
+)
 from .executors import LegacyStageExecutor, TicketExecutor, TicketRunContext
 from .helpers import (
     _branch_hook_env,
@@ -979,6 +985,14 @@ class Orchestrator:
         # body yield to a poll tick that re-dispatches the still-active ticket.
         # See docs/improvements/dispatch-double-dispatch-race-2026-06-28.md.
         self._terminal_persist_pending: set[str] = set()
+        # Worker exits whose stage-ownership validation hit a transient
+        # tracker failure after the running entry was popped. The
+        # reconcile tick drains this registry every poll (see
+        # `_drain_exit_ownership_pending`): without it, no observer
+        # remains for a ticket parked in an unauthorized terminal by a
+        # crash-after-self-drive worker. Keyed by issue id, so the
+        # registry is bounded by the board.
+        self._exit_ownership_pending: dict[str, ExitOwnershipCheck] = {}
         # G3 — wait-age dispatch bump. Each id leaves `_claimed` via the G1
         # prune block; record the moment it left so the sort can promote
         # candidates older than `WAIT_AGE_BUMP_MIN` ahead of FIFO. Entries
@@ -8887,7 +8901,70 @@ class Orchestrator:
         )
         return replace(issue, state=target_state)
 
+    async def _drain_exit_ownership_pending(self, cfg: ServiceConfig) -> None:
+        """Retry pending worker-exit ownership validations (fail-closed).
+
+        A worker exit that could not validate (or clamp) the final board
+        state parks an `ExitOwnershipCheck` here, because the popped
+        running entry leaves no other observer for that ticket and
+        terminal states are never re-dispatched. Each reconcile tick
+        re-attempts the same refresh + rewind + clamp the exit handler
+        performs: a record leaves this registry only when the board
+        state is validated (no rewind demanded — including the case
+        where an operator already moved the ticket) or the clamp
+        succeeded. A still-failing tracker keeps the record and records
+        the tracker error, so recovery is deterministic — the next poll
+        tries again — rather than an unbounded silent gap.
+        """
+        if not self._exit_ownership_pending:
+            return
+        for issue_id, check in list(self._exit_ownership_pending.items()):
+            try:
+                refreshed = await self._refresh_issue_state(cfg, issue_id)
+                if refreshed is None:
+                    continue
+                target = _stage_ownership_rewind_state(
+                    cfg,
+                    refreshed,
+                    from_state=check.authorized_state,
+                    to_state=refreshed.state or "",
+                    worker_kind=check.agent_kind,
+                )
+                if target is None:
+                    self._exit_ownership_pending.pop(issue_id, None)
+                    continue
+                await self._clamp_stage_ownership(
+                    cfg=cfg,
+                    issue=refreshed,
+                    from_state=check.authorized_state,
+                    observed_state=refreshed.state or "",
+                    target_state=target,
+                    worker_kind=check.agent_kind,
+                    site="reconcile_exit_pending",
+                )
+                self._exit_ownership_pending.pop(issue_id, None)
+                log.info(
+                    "exit_ownership_validated",
+                    issue_id=issue_id,
+                    identifier=check.identifier,
+                    site="reconcile_exit_pending",
+                    target_state=target,
+                )
+            except Exception as exc:
+                log.warning(
+                    "exit_ownership_retry_failed",
+                    issue_id=issue_id,
+                    identifier=check.identifier,
+                    site=check.failed_site,
+                    error=str(exc),
+                )
+                self._record_tracker_error(issue_id, exc)
+
     async def _reconcile_running(self, cfg: ServiceConfig) -> None:
+        # Part 0: pending worker-exit ownership checks — see
+        # `_drain_exit_ownership_pending`. Runs before the running-entry
+        # parts because the tickets it covers have no running entry.
+        await self._drain_exit_ownership_pending(cfg)
         # Part A: isolate each heartbeat/stall/eject lifecycle.
         now = datetime.now(timezone.utc)
         for issue_id, entry in list(self._running.items()):
