@@ -30,6 +30,12 @@ class RunningEntry:
     workspace_path: Path
     attempt_kind: str = "initial"
     agent_kind: str = ""
+    # The lane this worker session was launched (or phase-rerouted) to
+    # operate. Stage-ownership reconciliation compares board moves against
+    # this boundary, NOT against `issue.state`: poll ticks snapshot the
+    # board into `issue` mid-turn, so a rogue worker's own advance would
+    # otherwise launder itself into the "authorized" baseline.
+    authorized_state: str = ""
     run_id: str = ""
     # A recovered attempt always owns a new run id. The predecessor link is
     # public history; the private checkpoint is consumed only by the backend

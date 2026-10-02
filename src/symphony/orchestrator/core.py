@@ -151,6 +151,7 @@ from .helpers import (
     _notify_state_transition,
     _requested_agent_kind,
     _sort_for_dispatch_fifo,
+    _stage_ownership_rewind_state,
     _task_debug,
     _to_iso,
     _utc_iso_z,
@@ -6721,6 +6722,7 @@ class Orchestrator:
             workspace_path=workspace_path,
             attempt_kind=resolved_attempt_kind,
             agent_kind=agent_kind,
+            authorized_state=issue.state or "",
             run_id=run_id,
             continued_from_run_id=acquisition.continued_from_run_id,
             continuation_checkpoint=acquisition.checkpoint,
@@ -7047,6 +7049,9 @@ class Orchestrator:
         cfg = phase_cfg
         if running_entry is not None:
             running_entry.agent_kind = cfg.agent.kind
+            running_entry.authorized_state = _canonical_state_label(
+                cfg, current_state
+            )
         client, first_prompt = await self._rebuild_backend_for_phase(
             issue=issue,
             running_issue_id=running_issue_id,
@@ -8826,6 +8831,62 @@ class Orchestrator:
         _, _, stall_timeout_ms = entry_cfg.backend_timeouts()
         return cfg.agent.stall_timeout_ms_for_state(entry.issue.state, stall_timeout_ms)
 
+    async def _clamp_stage_ownership(
+        self,
+        *,
+        cfg: ServiceConfig,
+        issue: Issue,
+        from_state: str,
+        observed_state: str,
+        target_state: str,
+        worker_kind: str,
+        site: str,
+    ) -> Issue:
+        """Rewrite an unauthorized multi-lane advance onto the board.
+
+        Appends a `## Stage Ownership` note explaining the clamp and moves
+        the ticket back to `target_state`, the first crossed lane whose
+        `stage_kinds` owner differs from the moving worker. Raises on
+        tracker failure — callers must treat a failed clamp as a hard
+        error and never accept the unauthorized advance.
+        """
+        note_body = (
+            f"The `{worker_kind}` worker advanced this ticket from "
+            f"`{from_state}` to `{observed_state}` in a single observed "
+            f"step, crossing `{target_state}`, whose `stage_kinds` owner "
+            "is a different backend. The transition was clamped back to "
+            f"`{target_state}` so the configured stage owner executes it."
+        )
+        await asyncio.to_thread(
+            self._tracker_call_append_note,
+            cfg,
+            issue,
+            "Stage Ownership",
+            note_body,
+        )
+        await asyncio.to_thread(
+            self._tracker_call_update_state,
+            cfg,
+            issue,
+            target_state,
+        )
+        self._record_stats_transition(
+            issue.identifier,
+            observed_state,
+            target_state,
+        )
+        log.warning(
+            "stage_ownership_clamped",
+            issue_id=issue.id,
+            identifier=issue.identifier,
+            site=site,
+            from_state=from_state,
+            observed_state=observed_state,
+            target_state=target_state,
+            worker_kind=worker_kind,
+        )
+        return replace(issue, state=target_state)
+
     async def _reconcile_running(self, cfg: ServiceConfig) -> None:
         # Part A: isolate each heartbeat/stall/eject lifecycle.
         now = datetime.now(timezone.utc)
@@ -9046,6 +9107,45 @@ class Orchestrator:
                 state = normalize_state(issue.state)
                 if release_rewound or state not in terminal:
                     return
+            # Stage ownership (v0.26.x): a worker that self-drove its
+            # ticket across lanes owned by other `stage_kinds` backends
+            # must not be able to park it in a terminal lane either. The
+            # clamp runs before terminal acceptance (terminal_seen_at)
+            # and cancels the worker; the next dispatch reaches the
+            # rightful stage owner. A failed tracker write is retried on
+            # the next reconcile tick — the terminal state is never
+            # accepted while the clamp keeps failing.
+            ownership_target = _stage_ownership_rewind_state(
+                cfg,
+                issue,
+                from_state=entry.authorized_state or entry.issue.state or "",
+                to_state=issue.state or "",
+                worker_kind=entry.agent_kind,
+            )
+            if ownership_target is not None:
+                try:
+                    entry.issue = await self._clamp_stage_ownership(
+                        cfg=cfg,
+                        issue=issue,
+                        from_state=entry.authorized_state or entry.issue.state or "",
+                        observed_state=issue.state or "",
+                        target_state=ownership_target,
+                        worker_kind=entry.agent_kind or cfg.agent.kind,
+                        site="reconcile_terminal",
+                    )
+                except Exception as exc:
+                    log.warning(
+                        "stage_ownership_clamp_failed",
+                        issue_id=issue.id,
+                        identifier=issue.identifier,
+                        site="reconcile_terminal",
+                        error=str(exc),
+                    )
+                    self._record_tracker_error(issue.id, exc)
+                    return
+                if entry.worker_task is not None:
+                    entry.worker_task.cancel()
+                return
             if entry.terminal_seen_at is None:
                 entry.terminal_seen_at = now
             entry.issue = Issue(
@@ -9206,6 +9306,42 @@ class Orchestrator:
                 finally:
                     entry.workspace_cleanup_finished.set()
         elif state in active:
+            # Stage ownership (v0.26.x): same guard as the terminal branch,
+            # for a rogue worker that parked its ticket on a later ACTIVE
+            # lane and kept consuming it in its own session. The poll
+            # snapshot below must not launder the advance into the
+            # authorized baseline — compare against authorized_state.
+            ownership_target = _stage_ownership_rewind_state(
+                cfg,
+                issue,
+                from_state=entry.authorized_state or entry.issue.state or "",
+                to_state=issue.state or "",
+                worker_kind=entry.agent_kind,
+            )
+            if ownership_target is not None:
+                try:
+                    entry.issue = await self._clamp_stage_ownership(
+                        cfg=cfg,
+                        issue=issue,
+                        from_state=entry.authorized_state or entry.issue.state or "",
+                        observed_state=issue.state or "",
+                        target_state=ownership_target,
+                        worker_kind=entry.agent_kind or cfg.agent.kind,
+                        site="reconcile_active",
+                    )
+                except Exception as exc:
+                    log.warning(
+                        "stage_ownership_clamp_failed",
+                        issue_id=issue.id,
+                        identifier=issue.identifier,
+                        site="reconcile_active",
+                        error=str(exc),
+                    )
+                    self._record_tracker_error(issue.id, exc)
+                    return
+                if entry.worker_task is not None:
+                    entry.worker_task.cancel()
+                return
             entry.terminal_seen_at = None
             # Update in-memory issue snapshot.
             entry.issue = Issue(

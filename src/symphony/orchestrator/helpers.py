@@ -179,6 +179,83 @@ def _requested_agent_kind(issue: Issue) -> str | None:
     return kind or None
 
 
+def _stage_ownership_crossed_lanes(
+    cfg: ServiceConfig,
+    *,
+    from_state: str,
+    to_state: str,
+) -> list[str]:
+    """Active lanes strictly between `from_state` and `to_state`.
+
+    `to_state` outside the active lanes (a terminal lane, or drift)
+    counts as beyond the last active lane: every later active lane was
+    crossed on the way there. An empty result means the transition is
+    adjacent, a rewind, or left the configured lanes entirely from an
+    unknown starting point.
+    """
+    active = cfg.tracker.active_states
+    start = next(
+        (
+            i
+            for i, lane in enumerate(active)
+            if normalize_state(lane) == normalize_state(from_state)
+        ),
+        None,
+    )
+    if start is None:
+        return []
+    end = next(
+        (
+            i
+            for i, lane in enumerate(active)
+            if normalize_state(lane) == normalize_state(to_state)
+        ),
+        len(active),
+    )
+    if end <= start + 1:
+        return []
+    return list(active[start + 1 : end])
+
+
+def _stage_ownership_rewind_state(
+    cfg: ServiceConfig,
+    issue: Issue,
+    *,
+    from_state: str,
+    to_state: str,
+    worker_kind: str,
+) -> str | None:
+    """Lane an unauthorized multi-lane advance must be clamped back to.
+
+    `agent.stage_kinds` assigns each lane its own backend. A worker may
+    complete its own lane and *request* the next state (a single forward
+    step — the orchestrator re-resolves the backend for the new lane),
+    but it may not consume further lanes owned by a different backend.
+    When the observed advance crosses such a lane, return the first
+    crossed lane the moving worker does not own, so callers can clamp
+    the transition there and let dispatch reach the rightful owner.
+
+    Returns None when the board defines no `stage_kinds`, the ticket
+    carries an explicit agent pin (human authority outranks stage
+    routing), the moving kind is unknown, or every crossed lane belongs
+    to the moving worker's own backend kind.
+    """
+    if not cfg.agent.stage_kinds:
+        return None
+    if _requested_agent_kind(issue) is not None:
+        return None
+    mover = (worker_kind or cfg.agent.kind or "").strip().lower()
+    if not mover:
+        return None
+    for lane in _stage_ownership_crossed_lanes(
+        cfg, from_state=from_state, to_state=to_state
+    ):
+        owner = (cfg.agent.kind_for_state(lane, None) or "").strip().lower()
+        if owner != mover:
+            return lane
+    return None
+
+
 def _is_auto_triage_todo_candidate(issue: Issue, cfg: ServiceConfig) -> bool:
     if not cfg.agent.auto_triage_actionable_todo:
         return False

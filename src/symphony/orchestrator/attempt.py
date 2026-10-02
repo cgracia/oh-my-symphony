@@ -83,6 +83,7 @@ from .helpers import (
     _is_rewind_transition,
     _is_successful_terminal_state,
     _rewind_budget_target_state,
+    _stage_ownership_rewind_state,
 )
 from .release_cycle import release_failure_target_state as _release_failure_target_state
 from .run_registry import ReleaseGate, RunRegistry
@@ -994,6 +995,36 @@ async def _evaluate_turn_result(
         state = normalize_state(st.issue.state)
     if running.release_verifier_handoff_complete:
         return _TurnFlow.STOP
+    # Stage ownership (v0.26.x): `stage_kinds` lanes belong to their own
+    # backends. A worker may request the next lane, but an advance that
+    # crosses a lane owned by a different backend consumed work it was
+    # never authorized to perform. Clamp the observed transition back to
+    # the first crossed lane the worker does not own and fall through:
+    # the normal phase-transition path below re-resolves the backend for
+    # the clamped lane (F-01), so the rightful owner executes the stage.
+    ownership_target = _stage_ownership_rewind_state(
+        st.cfg,
+        st.issue,
+        from_state=st.prev_phase_state,
+        to_state=state,
+        worker_kind=st.cfg.agent.kind,
+    )
+    if ownership_target is not None:
+        try:
+            clamped = await orch._clamp_stage_ownership(
+                cfg=st.cfg,
+                issue=st.issue,
+                from_state=st.prev_phase_state,
+                observed_state=state,
+                target_state=ownership_target,
+                worker_kind=st.cfg.agent.kind,
+                site="turn_end",
+            )
+        except Exception as exc:
+            return _AttemptExit("phase_transition_error", str(exc))
+        st.issue = clamped
+        running.issue = st.issue
+        state = normalize_state(clamped.state)
     # Stage contract for the move INTO a terminal success lane. Terminal
     # transitions never reach `_transition_agent_phase` (the loop stops
     # below), so without this the last gate of every preset — Document ->
