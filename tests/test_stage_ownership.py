@@ -121,6 +121,7 @@ def _make_config(
     max_turns: int = 6,
     max_attempts: int = 3,
     stage_kinds: dict[str, str] | None = None,
+    stage_terminal_states: tuple[str, ...] = ("Human Review", "Done"),
 ) -> ServiceConfig:
     return ServiceConfig(
         workflow_path=Path("/tmp/WORKFLOW.md"),
@@ -143,6 +144,7 @@ def _make_config(
             max_concurrent_agents_by_state={},
             max_attempts=max_attempts,
             stage_kinds=dict(stage_kinds) if stage_kinds is not None else {},
+            stage_terminal_states=stage_terminal_states,
         ),
         codex=CodexConfig(
             command="codex app-server",
@@ -353,12 +355,31 @@ def test_crossed_lanes_between_adjacent_and_multi_lane_states() -> None:
         )
         == ["Verify"]
     )
-    # A terminal destination counts as beyond the last active lane.
+    # A configured succession terminal counts as beyond the last lane.
     assert (
         _stage_ownership_crossed_lanes(
             cfg, from_state="In Progress", to_state="Human Review"
         )
         == ["Verify", "Document"]
+    )
+    # The success vocabulary is always a succession terminal.
+    assert (
+        _stage_ownership_crossed_lanes(cfg, from_state="In Progress", to_state="Done")
+        == ["Verify", "Document"]
+    )
+    # Park terminals cross nothing: a lane may give up from anywhere.
+    for park in ("Blocked", "Cancelled", "Archive"):
+        assert (
+            _stage_ownership_crossed_lanes(cfg, from_state="In Progress", to_state=park)
+            == []
+        )
+    # Without the explicit list, a non-default review lane is a park.
+    unlisted = _make_config(stage_terminal_states=())
+    assert (
+        _stage_ownership_crossed_lanes(
+            unlisted, from_state="In Progress", to_state="Human Review"
+        )
+        == []
     )
     # Backward moves cross nothing.
     assert (
@@ -388,6 +409,13 @@ def test_rewind_state_requires_crossed_lane_owned_by_other_backend() -> None:
             cfg, issue, from_state="In Progress", to_state="Document", worker_kind="codex"
         )
         == "Verify"
+    )
+    # Park terminals never clamp, even mid-pipeline: giving up is legal.
+    assert (
+        _stage_ownership_rewind_state(
+            cfg, issue, from_state="In Progress", to_state="Blocked", worker_kind="codex"
+        )
+        is None
     )
     # Adjacent single step: a legal "request the next lane" — None.
     assert (
@@ -752,6 +780,89 @@ def test_reconcile_paused_self_drive_still_clamps(
     assert entry.issue.state == "Verify"
     # The operator's pause survives the clamp.
     assert o.is_paused(issue.id)
+
+
+def test_worker_exit_clamps_crash_after_self_drive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The GH-165 exit-255 shape: the worker moved its own ticket across
+    foreign lanes and exited with an error before any turn-end refresh.
+    With the entry popped from `_running`, reconcile can no longer see
+    the ticket — the exit handler is the only observer left."""
+    cfg = _make_config(stage_kinds=_STAGE_KINDS)
+    o = _orch(tmp_path)
+    entry = _seed_running_entry(
+        o, _make_issue("In Progress"), tmp_path, agent_kind="codex", authorized_state="In Progress"
+    )
+
+    updates: list[tuple[str, str]] = []
+    notes: list[str] = []
+    monkeypatch.setattr(
+        Orchestrator,
+        "_tracker_call_update_state",
+        staticmethod(lambda _cfg, issue_arg, target: updates.append((issue_arg.state, target))),
+    )
+    monkeypatch.setattr(
+        Orchestrator,
+        "_tracker_call_append_note",
+        staticmethod(lambda _cfg, issue_arg, heading, body: notes.append(heading)),
+    )
+    monkeypatch.setattr(
+        o._workflow_state, "current", lambda: cfg  # type: ignore[assignment]
+    )
+
+    async def _fake_refresh(self, cfg_arg, issue_id):  # noqa: ANN001
+        del self, cfg_arg, issue_id
+        return _make_issue("Human Review")
+
+    monkeypatch.setattr(Orchestrator, "_refresh_issue_state", _fake_refresh)
+
+    async def _exit() -> None:
+        await o._on_worker_exit("iss-1", "error", "simulated exit 255")
+
+    asyncio.run(_exit())
+
+    assert ("Human Review", "Verify") in updates
+    assert notes == ["Stage Ownership"]
+    assert entry.issue.state == "Verify"
+    assert "iss-1" not in o._running
+
+
+def test_worker_exit_does_not_unpark_legitimate_blocked(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A rewind-budget Blocked park is not a lane crossing: the exit guard
+    must leave it alone (regression: the guard initially treated every
+    terminal destination as beyond-last and moved Blocked -> Document)."""
+    cfg = _make_config(stage_kinds=_STAGE_KINDS)
+    o = _orch(tmp_path)
+    entry = _seed_running_entry(
+        o, _make_issue("Verify"), tmp_path, agent_kind="claude", authorized_state="Verify"
+    )
+
+    updates: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        Orchestrator,
+        "_tracker_call_update_state",
+        staticmethod(lambda _cfg, issue_arg, target: updates.append((issue_arg.state, target))),
+    )
+    monkeypatch.setattr(
+        o._workflow_state, "current", lambda: cfg  # type: ignore[assignment]
+    )
+
+    async def _fake_refresh(self, cfg_arg, issue_id):  # noqa: ANN001
+        del self, cfg_arg, issue_id
+        return _make_issue("Blocked")
+
+    monkeypatch.setattr(Orchestrator, "_refresh_issue_state", _fake_refresh)
+
+    async def _exit() -> None:
+        await o._on_worker_exit("iss-1", "error", "budget park")
+
+    asyncio.run(_exit())
+    assert updates == []
 
 
 def test_reconcile_legal_adjacent_advance_never_clamps(

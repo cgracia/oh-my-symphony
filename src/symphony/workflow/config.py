@@ -231,6 +231,15 @@ class AgentConfig:
     # Review). Resolution order at dispatch: explicit dispatch arg >
     # per-ticket `agent_kind` frontmatter pin > this map > `kind`.
     stage_kinds: dict[str, str] = field(default_factory=dict)
+    # Terminal lanes treated as PIPELINE-SUCCESSION destinations for
+    # stage-ownership enforcement. A move into one of these from an
+    # earlier lane crosses every active lane in between (a worker that
+    # self-drove there consumed stages it did not own). Other terminal
+    # lanes — Blocked, Cancelled, Archive — are parks a lane may
+    # legitimately reach from anywhere and cross nothing. Defaults to the
+    # success vocabulary (done/completed); boards whose review lane is
+    # named differently (e.g. Human Review) list it explicitly.
+    stage_terminal_states: tuple[str, ...] = ()
     # Backends to fall back to, in order, when a worker exits on a quota /
     # usage-limit error (not a transient rate limit, which retries on the
     # same backend). The orchestrator pins the next untried kind onto the

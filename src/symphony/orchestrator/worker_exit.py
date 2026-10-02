@@ -52,7 +52,10 @@ from ..workflow import ServiceConfig
 from ..workspace import HISTORY_PUSH_FAILED, HistoryGateResult
 from .constants import CONTINUATION_RETRY_DELAY_MS, RETRY_BASE_MS
 from .entries import RunningEntry, _IssueDebug
-from .helpers import _max_turns_exhausted_target_state
+from .helpers import (
+    _max_turns_exhausted_target_state,
+    _stage_ownership_rewind_state,
+)
 from .release_cycle import (
     is_release_success_state as _is_release_success_state,
     release_verifier_state as _release_verifier_state,
@@ -110,6 +113,48 @@ async def handle_worker_exit(
             }
     if not defer_lease_finish:
         orch._finish_run_lease(issue_id, entry, reason, error)
+    # Stage ownership (v0.26.x): the last line of defense for the
+    # crash-after-self-drive shape (GH-165: a worker moves its own ticket
+    # across foreign `stage_kinds` lanes and exits non-zero before any
+    # turn-end refresh). Reconcile only observes tickets with a live
+    # running entry; once this pop happened, this is the only observer
+    # left. Compare the final board state against the lane this session
+    # was authorized for and clamp unauthorized crossings. Reconcile-
+    # owned cancellations already clamped (or deliberately accepted)
+    # before cancelling, so they are skipped here.
+    if cfg is not None and reason != "cancelled":
+        try:
+            refreshed = await orch._refresh_issue_state(cfg, issue_id)
+        except Exception:
+            refreshed = None
+        if refreshed is not None:
+            ownership_target = _stage_ownership_rewind_state(
+                cfg,
+                refreshed,
+                from_state=entry.authorized_state or entry.issue.state or "",
+                to_state=refreshed.state or "",
+                worker_kind=entry.agent_kind,
+            )
+            if ownership_target is not None:
+                try:
+                    entry.issue = await orch._clamp_stage_ownership(
+                        cfg=cfg,
+                        issue=refreshed,
+                        from_state=entry.authorized_state or entry.issue.state or "",
+                        observed_state=refreshed.state or "",
+                        target_state=ownership_target,
+                        worker_kind=entry.agent_kind or cfg.agent.kind,
+                        site="worker_exit",
+                    )
+                except Exception as exc:
+                    log.warning(
+                        "stage_ownership_clamp_failed",
+                        issue_id=issue_id,
+                        identifier=entry.issue.identifier,
+                        site="worker_exit",
+                        error=str(exc),
+                    )
+                    orch._record_tracker_error(issue_id, exc)
     debug = _record_exit_accounting(orch, issue_id, entry, reason, error)
 
     if terminal_cancelled:

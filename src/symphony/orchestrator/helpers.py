@@ -179,6 +179,23 @@ def _requested_agent_kind(issue: Issue) -> str | None:
     return kind or None
 
 
+def _stage_ownership_succession_terminal(cfg: ServiceConfig, to_state: str) -> bool:
+    """True when `to_state` is a pipeline-succession terminal lane.
+
+    These are the terminal lanes that mean "the pipeline advanced past the
+    last active lane": the success vocabulary (done/completed) plus any
+    lanes the workflow lists in `agent.stage_terminal_states` (e.g. a
+    Human Review handoff). All other terminal lanes — Blocked, Cancelled,
+    Archive — are parks a lane may legitimately reach from anywhere.
+    """
+    destination = normalize_state(to_state)
+    if destination in ("done", "completed"):
+        return True
+    return any(
+        normalize_state(state) == destination for state in cfg.agent.stage_terminal_states
+    )
+
+
 def _stage_ownership_crossed_lanes(
     cfg: ServiceConfig,
     *,
@@ -187,11 +204,13 @@ def _stage_ownership_crossed_lanes(
 ) -> list[str]:
     """Active lanes strictly between `from_state` and `to_state`.
 
-    `to_state` outside the active lanes (a terminal lane, or drift)
-    counts as beyond the last active lane: every later active lane was
-    crossed on the way there. An empty result means the transition is
-    adjacent, a rewind, or left the configured lanes entirely from an
-    unknown starting point.
+    A pipeline-succession terminal destination (see
+    `_stage_ownership_succession_terminal`) counts as beyond the last
+    active lane: every later active lane was crossed on the way there.
+    A park terminal (Blocked/Cancelled/Archive/...) crosses nothing — a
+    lane may legitimately give up from anywhere. An empty result means
+    the transition is adjacent, a rewind, a park, or left the
+    configured lanes entirely from an unknown starting point.
     """
     active = cfg.tracker.active_states
     start = next(
@@ -204,14 +223,16 @@ def _stage_ownership_crossed_lanes(
     )
     if start is None:
         return []
-    end = next(
-        (
+    if any(normalize_state(lane) == normalize_state(to_state) for lane in active):
+        end = next(
             i
             for i, lane in enumerate(active)
             if normalize_state(lane) == normalize_state(to_state)
-        ),
-        len(active),
-    )
+        )
+    elif _stage_ownership_succession_terminal(cfg, to_state):
+        end = len(active)
+    else:
+        return []
     if end <= start + 1:
         return []
     return list(active[start + 1 : end])

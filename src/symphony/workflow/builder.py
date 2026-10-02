@@ -434,6 +434,10 @@ def build_service_config(
             active_states=tracker.active_states,
             terminal_states=tracker.terminal_states,
         ),
+        stage_terminal_states=_as_str_list(
+            agent_raw.get("stage_terminal_states"),
+            (),
+        ),
         stage_contracts=_validated_stage_contracts(
             agent_raw.get("stage_contracts")
         ),
