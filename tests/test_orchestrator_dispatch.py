@@ -10962,6 +10962,7 @@ def _fallback_error_run(
 
 @pytest.mark.parametrize("error", [
     "turn_failed: codex: You have hit your usage limit for this plan",
+    "turn_failed: claude: You've hit your limit · resets 3am",
     "429 rate limit exceeded: insufficient_quota; check billing",
 ])
 def test_quota_error_pins_the_next_fallback_backend_and_retries(monkeypatch, tmp_path, error):

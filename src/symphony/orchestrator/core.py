@@ -376,7 +376,9 @@ _QUOTA_WORKER_ERROR_MARKERS = (
     "plan limit",
     "weekly limit",
     "monthly limit",
+    "hit your limit",
 )
+
 
 
 def _is_quota_worker_error(reason: str, error: str | None) -> bool:
