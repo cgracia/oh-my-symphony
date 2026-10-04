@@ -484,6 +484,30 @@ def test_rewind_state_respects_pins_and_missing_stage_kinds() -> None:
     )
 
 
+def test_rewind_state_ignores_automatic_routing_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only a human pin disables the clamp, not the effective routing override.
+
+    `_requested_agent_kind` may grow automatic sources (e.g. a lane-scoped
+    quota fallback); those are not authority to skip another lane's owner.
+    """
+    import symphony.orchestrator.helpers as helpers_mod
+
+    monkeypatch.setattr(helpers_mod, "_requested_agent_kind", lambda issue: "codex")
+    cfg = _make_config(stage_kinds=_STAGE_KINDS)
+    assert (
+        _stage_ownership_rewind_state(
+            cfg,
+            _make_issue("Document"),
+            from_state="In Progress",
+            to_state="Document",
+            worker_kind="codex",
+        )
+        == "Verify"
+    )
+
+
 def test_same_kind_multi_lane_crossing_is_not_clamped() -> None:
     cfg = _make_config(stage_kinds={"in progress": "codex", "verify": "codex", "document": "codex"})
     assert (

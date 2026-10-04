@@ -263,7 +263,10 @@ def _stage_ownership_rewind_state(
     """
     if not cfg.agent.stage_kinds:
         return None
-    if _requested_agent_kind(issue) is not None:
+    # Only a human pin (`agent_kind`) outranks stage routing. Do not use
+    # `_requested_agent_kind`: it is the *effective* routing override, and
+    # an automatic override must never disable ownership enforcement.
+    if (issue.agent_kind or "").strip():
         return None
     mover = (worker_kind or cfg.agent.kind or "").strip().lower()
     if not mover:
