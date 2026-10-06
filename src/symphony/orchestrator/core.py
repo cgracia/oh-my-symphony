@@ -207,6 +207,11 @@ _RETRYABLE_WORKER_ERROR_MARKERS = (
     "temporarily overloaded",
     "overloaded",
     "service unavailable",
+    # Google-backed CLIs (agy) report a transient 503 as
+    # "UNAVAILABLE (code 503): The service is currently unavailable.",
+    # which the "service unavailable" substring above does not match.
+    "service is currently unavailable",
+    "unavailable (code 503)",
     "connection error",
     "network error",
     "connection reset",

@@ -4762,6 +4762,56 @@ def test_worker_exit_retryable_rate_limit_schedules_retry_without_pause(tmp_path
     asyncio.run(_run())
 
 
+def test_worker_exit_agy_service_unavailable_schedules_retry_without_pause(tmp_path):
+    registry = RunRegistry(tmp_path / ".symphony" / "state.db")
+    orch = _orch()
+    issue = _issue("MT-AGY-503", state="In Progress")
+
+    async def _run() -> None:
+        orch._loop = asyncio.get_running_loop()
+        orch._run_registry = registry
+        entry = _install_running_entry(orch, issue)
+        entry.agent_kind = "agy"
+
+        try:
+            # Verbatim agy stderr from a live transient outage.
+            await orch._on_worker_exit(
+                issue.id,
+                reason="turn_error",
+                error=(
+                    "turn_failed: Error: Eligibility check failed: "
+                    "UNAVAILABLE (code 503): The service is currently unavailable."
+                ),
+            )
+
+            flags = registry.get_issue_flags(issue.id)
+            assert flags is not None
+            assert flags.retry_attempt == 1
+            assert flags.paused is False
+            assert flags.pause_reason is None
+            assert orch.is_paused(issue.id) is False
+            retry = orch._retry[issue.id]
+            assert retry.error is not None
+            assert "UNAVAILABLE (code 503)" in retry.error
+            assert retry.kind == "retry"
+        finally:
+            for retry in list(orch._retry.values()):
+                retry.timer_handle.cancel()
+
+    asyncio.run(_run())
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        "UNAVAILABLE (code 503): backend down",
+        "The service is currently unavailable.",
+    ],
+)
+def test_is_retryable_worker_error_matches_each_agy_503_marker(error):
+    assert core_module._is_retryable_worker_error("agy", "turn_error", error) is True
+
+
 def test_worker_exit_connection_error_retries_without_pause(tmp_path):
     registry = RunRegistry(tmp_path / ".symphony" / "state.db")
     orch = _orch()
