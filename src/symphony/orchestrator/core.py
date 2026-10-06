@@ -379,6 +379,64 @@ _QUOTA_WORKER_ERROR_MARKERS = (
     "hit your limit",
 )
 
+# Slot release is a stronger consequence than backend fallback, so it gets a
+# narrow, *positive* provider-account-capacity vocabulary instead of reusing
+# the broad `_is_quota_worker_error` classifier (whose generic "quota" /
+# "billing" / "limit reached|exceeded" wording also matches host-resource
+# failures such as `Disk quota exceeded` or `memory limit exceeded`).
+# Tier 1 markers are provider-specific tokens/shapes, each tied to provider
+# evidence observed or shipped by this project and checked against an
+# adversarial host corpus (see the packet's provider-vocabulary-evidence
+# record): `insufficient_quota` (OpenAI API error code), `hit your limit`
+# (claude, runtime classifier commit 3ea26e3: "You've hit your limit ·
+# resets 3am"), `your usage limit` (codex 2026-09-05 E2E auto-pause, upstream
+# regression "You have hit your usage limit for this plan").  Generic
+# substrings (`usage limit`, `session limit`, `weekly/monthly limit`,
+# `plan limit`, credit wording) are deliberately NOT accepted here: they
+# collide with host/cgroup/CI/hosting wording, and a false positive wrongly
+# releases a concurrency slot while a false negative merely holds one.
+# Tier 2 (`quota` wording) additionally requires a reset *window with a
+# time* ("Resets in 3h4m58s", "resets 3am"): provider exhaustion carries a
+# reset window, host resource limits never do; administrative wording like
+# "reset your quota" or "counters reset after reboot" does not qualify.
+# Anything else — including ambiguous bare quota/billing/limit text —
+# keeps ordinary pause semantics and holds its execution slot.
+_PROVIDER_CAPACITY_WORKER_ERROR_MARKERS = (
+    "insufficient_quota",
+    "hit your limit",
+    "your usage limit",
+)
+_PROVIDER_CAPACITY_RESET_WINDOW_RE = re.compile(
+    r"resets?\s+(?:in\s+|at\s+|after\s+)?\d"
+)
+
+
+def _is_provider_capacity_worker_error(reason: str, error: str | None) -> bool:
+    """Positive provider-account-capacity classification, nothing broader.
+
+    Used only to decide whether a durable auto-pause may release its
+    execution slot; `_is_quota_worker_error` (backend fallback) is unchanged.
+    """
+    detail = f"{reason}: {error}" if error else reason
+    clean = _clean_board_error_message(detail).lower()
+    if _has_retryable_worker_marker(clean):
+        return False
+    if any(marker in clean for marker in _PROVIDER_CAPACITY_WORKER_ERROR_MARKERS):
+        return True
+    return "quota" in clean and bool(
+        _PROVIDER_CAPACITY_RESET_WINDOW_RE.search(clean)
+    )
+
+
+# Trusted provenance marker for provider-capacity parks.  It occupies the
+# envelope PREFIX — a position raw worker-error text can never reach,
+# because the detail is embedded strictly after it.  A suffix-position
+# marker was rejected in review: error text like
+# "disk quota exceeded; provider capacity exhausted" could forge it.  The
+# slot-release seam trusts only this structurally unreachable position,
+# never substring containment in the free-text region.
+_PROVIDER_CAPACITY_PAUSE_PREFIX = "worker error [provider capacity]: "
+
 
 
 def _is_quota_worker_error(reason: str, error: str | None) -> bool:
@@ -393,9 +451,16 @@ def _is_quota_worker_error(reason: str, error: str | None) -> bool:
     )
 
 
-def _worker_error_pause_reason(reason: str, error: str | None) -> str:
+def _worker_error_pause_reason(
+    reason: str, error: str | None, *, provider_capacity: bool = False
+) -> str:
     detail = f"{reason}: {error}" if error else reason
     clean = _clean_board_error_message(detail)
+    if provider_capacity:
+        return (
+            f"{_PROVIDER_CAPACITY_PAUSE_PREFIX}{clean}; "
+            "paused for operator inspection"
+        )
     return f"worker error: {clean}; paused for operator inspection"
 
 
@@ -425,6 +490,29 @@ def _is_retryable_auto_pause_reason(pause_reason: str | None) -> bool:
     if "worker error:" not in clean or "paused for operator inspection" not in clean:
         return False
     return _has_retryable_worker_marker(clean) or _is_opencode_sigterm_retry("", clean)
+
+
+def _is_provider_capacity_auto_pause_reason(pause_reason: str | None) -> bool:
+    """A durable pause releases a slot only if stamped at creation time.
+
+    The stamp is the envelope prefix, a position raw worker-error text can
+    never reach; the detail is embedded strictly after it.  The prefix is
+    persisted, so it survives restart rehydration unchanged, and the
+    persisted error text alone is never re-classified here.  Note the
+    bracketed prefix deliberately does not contain the plain
+    "worker error:" marker, so stamped parks are also excluded from the
+    retryable-pause rehydration path — consistent with creation-time
+    gating, where retryable errors are never stamped.  Slot release stays
+    conditional on the successful persisted pause state (registry write
+    failures keep ordinary slot semantics under the inherited fail-open
+    limitation).
+    """
+    if not pause_reason:
+        return False
+    clean = _clean_board_error_message(pause_reason).lower()
+    return clean.startswith(_PROVIDER_CAPACITY_PAUSE_PREFIX) and clean.endswith(
+        "; paused for operator inspection"
+    )
 
 
 def _update_state_turn_counter(debug: _IssueDebug, state: str) -> int:
@@ -3554,6 +3642,11 @@ class Orchestrator:
     def is_paused(self, issue_id: str) -> bool:
         return issue_id in self._paused_issue_ids
 
+    def _is_provider_capacity_paused(self, issue_id: str) -> bool:
+        return self.is_paused(issue_id) and _is_provider_capacity_auto_pause_reason(
+            self._pause_reasons.get(issue_id)
+        )
+
     def pause_worker(self, issue_id: str, reason: str | None = None) -> bool:
         """Queue a pause that takes effect at the next turn boundary.
 
@@ -3572,7 +3665,12 @@ class Orchestrator:
             return False
         if issue_id in self._paused_issue_ids:
             return False
-        pause_reason = reason or "operator pause"
+        # Namespaced so operator-supplied text can never occupy position 0,
+        # the trusted envelope prefix reserved for the code-issued
+        # provider-capacity stamp (independent-review finding R1).
+        pause_reason = (
+            f"operator pause: {reason}" if reason else "operator pause"
+        )
         self._paused_issue_ids.add(issue_id)
         self._pause_reasons[issue_id] = pause_reason
         self._set_issue_flags(
@@ -5809,7 +5907,9 @@ class Orchestrator:
             )
         if issue.id in self._paused_issue_ids:
             return _EligibilityDecision(
-                _EligibilityDisposition.WAIT_SLOT,
+                _EligibilityDisposition.WAIT_NON_SLOT
+                if self._is_provider_capacity_paused(issue.id)
+                else _EligibilityDisposition.WAIT_SLOT,
                 "paused",
                 self._pause_reasons.get(issue.id, "paused"),
             )
@@ -8402,7 +8502,11 @@ class Orchestrator:
             delay_ms=delay_ms,
             error=error,
             kind=retry_kind,
-            holds_slot=holds_slot,
+            # Positively classified provider-capacity parks keep their claim
+            # and durable resume metadata, but cannot reserve execution
+            # capacity. This also covers re-parking.
+            holds_slot=holds_slot
+            and not self._is_provider_capacity_paused(issue_id),
             touched_files=touched_files,
         )
 

@@ -953,7 +953,13 @@ def _handle_worker_error(
             error=error,
         )
     else:
-        pause_reason = core._worker_error_pause_reason(reason, error)
+        pause_reason = core._worker_error_pause_reason(
+            reason,
+            error,
+            provider_capacity=core._is_provider_capacity_worker_error(
+                reason, error
+            ),
+        )
         debug.last_error = pause_reason
         orch._paused_issue_ids.add(issue_id)
         orch._pause_reasons[issue_id] = pause_reason

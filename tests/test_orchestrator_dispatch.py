@@ -2315,8 +2315,10 @@ def test_pause_worker_persists_custom_reason(tmp_path):
         flags = registry.get_issue_flags(issue.id)
         assert flags is not None
         assert flags.paused is True
-        assert flags.pause_reason == "checking filesystem"
-        assert orch._pause_reasons[issue.id] == "checking filesystem"
+        assert flags.pause_reason == "operator pause: checking filesystem"
+        assert (
+            orch._pause_reasons[issue.id] == "operator pause: checking filesystem"
+        )
 
     asyncio.run(_run())
 
