@@ -38,6 +38,7 @@ class RunningEntry:
     authorized_state: str = ""
     # Prevent a pinned verifier backend from attesting its own author session.
     verify_session_authored: bool = False
+    verify_turn_pending: bool = False
     run_id: str = ""
     # A recovered attempt always owns a new run id. The predecessor link is
     # public history; the private checkpoint is consumed only by the backend

@@ -9035,16 +9035,27 @@ class Orchestrator:
     async def _sweep_verify_closure(self, cfg: ServiceConfig) -> None:
         from . import verify_receipts
 
-        if verify_receipts.contract(cfg) is None:
+        try:
+            if verify_receipts.contract(cfg) is None:
+                return
+        except ValueError:
+            # Dispatch preflight owns malformed-config reporting.
             return
         # Also observes cards with no running entry after a crash or restart.
         # No cached terminal approval: current repository findings/lineage are
         # re-read by the trusted predicate on every poll.
-        issues = await asyncio.to_thread(self._tracker_call_terminal_issues, cfg)
+        try:
+            issues = await asyncio.to_thread(self._tracker_call_terminal_issues, cfg)
+        except Exception as exc:
+            log.warning("verify_closure_sweep_fetch_failed", error=str(exc))
+            return
         for issue in issues:
             if issue.id in self._running or issue.id in self._terminal_persist_pending:
                 continue
-            await self._enforce_verify_closure(cfg, issue)
+            try:
+                await self._enforce_verify_closure(cfg, issue)
+            except Exception as exc:
+                self._record_tracker_error(issue.id, exc)
 
     async def _drain_exit_ownership_pending(self, cfg: ServiceConfig) -> None:
         """Retry pending worker-exit ownership validations (fail-closed).
@@ -9403,6 +9414,10 @@ class Orchestrator:
                     return
                 if entry.worker_task is not None:
                     entry.worker_task.cancel()
+                return
+            if entry.verify_turn_pending:
+                # The actual Verify turn has not yet snapshotted its evidence.
+                # Hold acceptance/cleanup; turn end or exit validates it.
                 return
             issue, closure_rejected = await self._enforce_verify_closure(cfg, issue)
             if closure_rejected:

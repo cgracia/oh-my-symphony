@@ -67,7 +67,11 @@ The runtime validates receipt bindings/digest before invoking the checker.
 Success requires exit 0 and exactly
 `{"passed": true, "missing": []}` on stdout. Rejection uses
 `{"passed": false, "missing": ["exact finding URL or diagnostic", "…"]}`.
-Other output, transport errors, timeout or nonzero exit fail closed. No arbitrary
+Other output, transport errors, timeout or nonzero exit produce an unavailable
+condition: acceptance and cleanup are held, a runtime error is recorded, and
+validation retries without rewriting the board. Explicit `passed:false` means
+a definitive rejection. Repository transport/reader outages must exit nonzero;
+malformed or missing closure evidence is a definitive rejection. No arbitrary
 worker-supplied path is used to obtain the closure during terminal validation.
 
 The repository checker **must** independently obtain the authoritative required
@@ -93,15 +97,33 @@ sets `terminal_seen_at` or removes the workspace. A per-tick sweep also checks
 terminal cards without a running entry, including the immediate startup tick.
 There is no persisted coordinator, approval cache or new workflow stage.
 
+An in-flight independent Verify turn is held during reconciliation until its
+receipt is complete; its own turn-end/exit path then decides acceptance.
 Rejection first writes the configured failure state, then appends an inspectable
 `Verify Closure Rejected` note with the missing set. Failed writes propagate to
-existing running/exit retry handling; a failed sweep degrades the tick and retries
-on the next poll. Startup cleanup also applies the predicate before removing any configured
+existing running/exit retry handling; a failed sweep card records an error and retries
+on the next poll while other cards continue. A terminal-fetch failure skips the
+sweep; malformed configuration is left to dispatch preflight. Startup cleanup also applies the predicate before removing any configured
 terminal workspace. No terminal cleanup occurs on a failed check. A worker can
 briefly write a terminal state to the board; this observer-based seam rejects it
 at the next runtime observation. It does not make arbitrary external board reads
 linearizable. Consumers must treat the board packet as unaccepted until the
 runtime condition validates it. Live adoption remains a separate owner action.
+
+## Required pre-adoption scope decision
+
+Before enabling the condition, inventory existing cards in the configured
+terminal destinations against the trusted checker. Decide explicitly which
+historical issue identities are outside the configured review obligation; put
+that scope in operator-owned policy, never mutable ticket/workspace prose. Any
+in-scope historical card with required material findings and no valid receipt
+will be rejected on startup, intentionally. Do not exempt cards merely because
+a worker once claimed Done. PR190's false terminal stays in scope. The multi-card
+scope oracle covers an explicitly unconfigured historical card, one failing
+tracker write, and one in-scope false terminal. Filtering solely on a current
+running entry or new-contract run record would permit unobserved/restart bypass,
+so this seam observes all configured destinations and delegates obligation
+scope to the trusted repository condition.
 
 ## RPGFlow composed acceptance remaining
 

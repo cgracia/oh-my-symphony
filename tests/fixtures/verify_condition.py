@@ -18,6 +18,10 @@ required = {
     if f["native_severity"] in {"P0", "P1", "P2"}
 }
 missing = []
+# An operator-owned scope exemption is not read from ticket/workspace prose.
+if request["issue_id"] in policy.get("outside_configured_scope", []):
+    print(json.dumps({"passed": True, "missing": []}))
+    raise SystemExit(0)
 receipt = request["receipt"]
 if required:
     if receipt is None:
@@ -27,6 +31,10 @@ if required:
         records = closure.get("closures")
         if not isinstance(records, list):
             records = []
+        known = {f["url"] for f in policy["findings"]}
+        for row in records:
+            if not isinstance(row, dict) or row.get("finding_url") not in known:
+                missing.append("unknown or malformed finding identity")
         candidate = receipt["candidate_sha"]
         lineage_valid = (
             candidate == policy["candidate_sha"]

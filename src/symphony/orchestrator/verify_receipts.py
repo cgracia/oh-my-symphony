@@ -21,6 +21,10 @@ from ..workflow import ServiceConfig
 from .entries import RunningEntry
 
 
+class ConditionUnavailable(RuntimeError):
+    """Do not accept or clean up; retry without rewriting the board."""
+
+
 def contract(cfg: ServiceConfig) -> dict[str, Any] | None:
     raw = cfg.raw.get("verify_closure")
     if "verify_closure" not in cfg.raw:
@@ -75,8 +79,13 @@ def contract(cfg: ServiceConfig) -> dict[str, Any] | None:
             for state, kind in kinds.items()
             if normalize_state(state) != stage
         )
-        or cfg.agent.kind == raw["verifier_kind"]
-        and not kinds
+        or (
+            cfg.raw.get("agent", {}).get("kind", cfg.agent.kind) == raw["verifier_kind"]
+            and any(
+                normalize_state(state) != stage and normalize_state(state) not in kinds
+                for state in cfg.tracker.active_states
+            )
+        )
     ):
         raise ValueError("Verify requires a dedicated configured stage backend")
     return raw
@@ -120,8 +129,10 @@ def begin(
     ):
         raise ValueError("worker lacks configured independent Verify authority")
     clean = subprocess.run(
-        ["git", "diff", "--quiet", "HEAD", "--"], cwd=workspace,
-        timeout=10, check=False,
+        ["git", "diff", "--quiet", "HEAD", "--"],
+        cwd=workspace,
+        timeout=10,
+        check=False,
     )
     if clean.returncode != 0:
         raise ValueError("Verify candidate has uncommitted tracked changes")
@@ -129,6 +140,7 @@ def begin(
     sha = git_inspect.resolve_commit(workspace, "HEAD")
     if not sha or not entry.run_id:
         raise ValueError("Verify receipt requires a runtime run and Git candidate")
+    entry.verify_turn_pending = True
     return sha
 
 
@@ -157,8 +169,12 @@ def complete(
         return
     content = path.read_bytes()
     if len(content) > 1_000_000:
-        raise ValueError("closure artifact exceeds 1 MB")
-    closure = json.loads(content)
+        return
+    try:
+        content_text = content.decode("utf-8")
+        closure = json.loads(content_text)
+    except (ValueError, UnicodeDecodeError):
+        return
     if not isinstance(closure, dict) or closure.get("candidate_sha") != candidate:
         return
     receipt = dict(
@@ -174,7 +190,7 @@ def complete(
         contract_sha256=fingerprint(policy),
         artifact=policy["artifact"],
         artifact_sha256=hashlib.sha256(content).hexdigest(),
-        artifact_content=content.decode("utf-8"),
+        artifact_content=content_text,
     )
     target = receipt_path(cfg, entry.issue)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -258,4 +274,6 @@ def evaluate(cfg: ServiceConfig, issue: Issue) -> tuple[bool, list[str]]:
             [] if answer["passed"] else ["repository condition rejected closure"]
         )
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
-        return False, [f"Verify closure predicate unavailable or malformed: {exc}"]
+        raise ConditionUnavailable(
+            f"Verify closure predicate unavailable or malformed: {exc}"
+        ) from exc

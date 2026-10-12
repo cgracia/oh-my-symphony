@@ -606,6 +606,8 @@ async def _run_turn_loop(orch: Orchestrator, st: _AttemptState) -> _AttemptExit 
                 )
             except Exception as exc:
                 return _AttemptExit("verify_receipt_error", str(exc))
+            finally:
+                st.running.verify_turn_pending = False
         _checkpoint_completed_turn(orch, st)
 
         # Record the state the backend just operated on so the
@@ -1158,6 +1160,7 @@ async def _evaluate_turn_result(
 
 
 async def _cleanup_backend(orch: Orchestrator, st: _AttemptState) -> None:
+    st.running.verify_turn_pending = False
     # Defensive: a phase transition may have left `client`
     # pointing to a half-initialized backend, or to one whose
     # earlier `stop()` already failed. Either way, exiting the

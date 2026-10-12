@@ -56,6 +56,7 @@ def case(tmp_path, monkeypatch):
         workflow_path=host / "WORKFLOW.md",
         workspace_root=tmp_path / "ws",
         raw={
+            "agent": {"kind": "codex"},
             "verify_closure": dict(
                 verify_state="Verify",
                 verifier_kind="claude",
@@ -67,7 +68,7 @@ def case(tmp_path, monkeypatch):
                     str(ROOT / "tests/fixtures/verify_condition.py"),
                     str(policy_file),
                 ],
-            )
+            ),
         },
     )
     o = lane._orch(workspace)
@@ -124,6 +125,7 @@ def attest(case, artifact=None):
     )
     entry.last_completed_turn_event = 1
     receipts.complete(cfg, entry, workspace, candidate, 1)
+    entry.verify_turn_pending = False
 
 
 @pytest.mark.parametrize(
@@ -358,7 +360,8 @@ def test_pinned_author_session_cannot_attest_verify(case):
 def test_bad_predicate_output_blocks(case, answer):
     o, cfg, entry, workspace, sha, board, notes, policy_file = case
     cfg.raw["verify_closure"]["command"] = [sys.executable, "-c", f"print({answer!r})"]
-    assert not receipts.evaluate(cfg, replace(entry.issue, state="Human Review"))[0]
+    with pytest.raises(receipts.ConditionUnavailable):
+        receipts.evaluate(cfg, replace(entry.issue, state="Human Review"))
 
 
 def test_valid_bounded_repair_then_qa_descendant(case):
@@ -376,11 +379,130 @@ def test_valid_bounded_repair_then_qa_descendant(case):
 
 def test_startup_cleanup_cannot_remove_unattested_terminal(case, monkeypatch):
     o, cfg, entry, workspace, sha, board, notes, policy_file = case
-    board['issue'] = replace(board['issue'], state='Done')
+    board["issue"] = replace(board["issue"], state="Done")
     removed = []
+
     async def remove(path):
         removed.append(path)
-    monkeypatch.setattr(o._workspace_manager, 'remove', remove, raising=False)
+
+    monkeypatch.setattr(o._workspace_manager, "remove", remove, raising=False)
     asyncio.run(o._startup_terminal_cleanup(cfg))
-    assert board['issue'].state == 'Blocked'
+    assert board["issue"].state == "Blocked"
     assert removed == []
+
+
+@pytest.mark.parametrize("path", ["reconcile", "exit", "sweep", "startup"])
+def test_unavailable_condition_holds_without_board_rewrite(case, monkeypatch, path):
+    o, cfg, entry, workspace, sha, board, notes, policy_file = case
+    cfg.raw["verify_closure"]["command"] = [sys.executable, "-c", "raise SystemExit(7)"]
+    attest(case)
+    board["issue"] = replace(board["issue"], state="Human Review")
+    entry.issue = replace(entry.issue, state="Document")
+    entry.authorized_state = "Document"
+    entry.agent_kind = "codex"
+    removed = []
+
+    async def remove(p):
+        removed.append(p)
+
+    monkeypatch.setattr(o._workspace_manager, "remove", remove, raising=False)
+    if path == "reconcile":
+        with pytest.raises(receipts.ConditionUnavailable):
+            asyncio.run(
+                o._reconcile_one(
+                    board["issue"],
+                    entry,
+                    cfg,
+                    active={"document", "verify"},
+                    terminal={"human review"},
+                    now=datetime.now(timezone.utc),
+                    recent_grace_s=0,
+                )
+            )
+        assert entry.terminal_seen_at is None
+    elif path == "exit":
+        asyncio.run(o._on_worker_exit(entry.issue.id, "normal", None))
+        assert entry.issue.id in o._exit_ownership_pending
+    else:
+        o._running.clear()
+        asyncio.run(
+            o._sweep_verify_closure(cfg)
+            if path == "sweep"
+            else o._startup_terminal_cleanup(cfg)
+        )
+    assert board["issue"].state == "Human Review"
+    assert notes == [] and removed == []
+
+
+def test_sweep_isolates_one_card_and_preserves_explicit_owner_scope(case, monkeypatch):
+    o, cfg, entry, workspace, sha, board, notes, policy_file = case
+    o._running.clear()
+    policy = json.loads(policy_file.read_text())
+    policy["outside_configured_scope"] = ["historic"]
+    policy_file.write_text(json.dumps(policy))
+    historical = replace(entry.issue, id="historic", identifier="OLD-1", state="Done")
+    broken = replace(entry.issue, id="broken", identifier="BAD-1", state="Human Review")
+    forged = replace(entry.issue, id="forged", identifier="BAD-2", state="Human Review")
+    updated = []
+
+    def update(_cfg, issue, state):
+        if issue.id == "broken":
+            raise OSError("one unavailable card")
+        updated.append((issue.id, state))
+
+    monkeypatch.setattr(o, "_tracker_call_update_state", update)
+    monkeypatch.setattr(
+        o, "_tracker_call_terminal_issues", lambda cfg: [historical, broken, forged]
+    )
+    asyncio.run(o._sweep_verify_closure(cfg))
+    assert updated == [("forged", "Blocked")]
+
+
+def test_inflight_verify_is_held_until_receipt_completion(case):
+    o, cfg, entry, workspace, sha, board, notes, policy_file = case
+    cfg = replace(cfg, agent=replace(cfg.agent, stage_terminal_states=()))
+    receipts.begin(cfg, entry, workspace, "Verify")
+    board["issue"] = replace(board["issue"], state="Human Review")
+    asyncio.run(
+        o._reconcile_one(
+            board["issue"],
+            entry,
+            cfg,
+            active={"verify", "document"},
+            terminal={"human review"},
+            now=datetime.now(timezone.utc),
+            recent_grace_s=0,
+        )
+    )
+    assert (
+        entry.terminal_seen_at is None
+        and board["issue"].state == "Human Review"
+        and notes == []
+    )
+
+
+@pytest.mark.parametrize("content", [b"{", b"\xff\xfe", b"[]", b"x" * 1_000_001], ids=["json", "encoding", "shape", "oversize"])
+def test_malformed_artifact_mints_no_receipt(case, content):
+    o, cfg, entry, workspace, sha, board, notes, policy_file = case
+    candidate = receipts.begin(cfg, entry, workspace, "Verify")
+    (workspace / "closure.json").write_bytes(content)
+    entry.last_completed_turn_event = 1
+    receipts.complete(cfg, entry, workspace, candidate, 1)
+    assert not receipts.receipt_path(cfg, entry.issue).exists()
+    assert not receipts.evaluate(cfg, replace(entry.issue, state="Human Review"))[0]
+
+
+def test_partial_dedicated_backend_configuration_is_rejected(case):
+    o, cfg, entry, workspace, sha, board, notes, policy_file = case
+    cfg.raw["agent"]["kind"] = "claude"
+    with pytest.raises(ValueError, match="dedicated"):
+        receipts.contract(cfg)
+
+
+def test_extra_unknown_closure_record_is_rejected(case):
+    o, cfg, entry, workspace, sha, board, notes, policy_file = case
+    data = closure(sha)
+    data["closures"].append(dict(data["closures"][0], finding_url="unknown"))
+    attest(case, data)
+    passed, missing = receipts.evaluate(cfg, replace(entry.issue, state="Human Review"))
+    assert not passed and missing == ["unknown or malformed finding identity"]
