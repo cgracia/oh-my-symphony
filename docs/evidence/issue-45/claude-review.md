@@ -1,7 +1,7 @@
 # Independent Claude challenge
 
 Exact candidate: `55bd3c973d1d0ab8782244ef19ba65f87185227f`.
-Model: Claude Opus (CLI configured default). Read-only session
+Model: `claude-opus-5-5` (CLI result metadata). Read-only session
 `655153e4-7ea1-4508-9fb5-c270c41c4a2d`, 17 reported turns, $1.1096792.
 
 # Verdict: CHANGES_REQUIRED for candidate `55bd3c9` (compared against base `cf25d3d`)
