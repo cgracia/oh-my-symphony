@@ -136,6 +136,14 @@ async def handle_worker_exit(
             refreshed = None
         validated = False
         if refreshed is not None:
+            try:
+                refreshed, _ = await orch._enforce_verify_closure(cfg, refreshed)
+                if "verify_closure" in cfg.raw:
+                    entry.issue = replace(entry.issue, state=refreshed.state)
+            except Exception as exc:
+                orch._record_tracker_error(issue_id, exc)
+                refreshed = None
+        if refreshed is not None:
             ownership_target = _stage_ownership_rewind_state(
                 cfg,
                 refreshed,
@@ -184,6 +192,12 @@ async def handle_worker_exit(
                 identifier=entry.issue.identifier,
                 site="worker_exit",
             )
+    if cfg is not None and "verify_closure" in cfg.raw and issue_id in orch._exit_ownership_pending:
+        # The popped worker has no authority to finalize/clean up until its
+        # final state validates. Existing pending checks retry on each tick.
+        orch._claimed.discard(issue_id)
+        await _emit_worker_exit(orch, issue_id, entry, reason, error)
+        return
     debug = _record_exit_accounting(orch, issue_id, entry, reason, error)
 
     if terminal_cancelled:

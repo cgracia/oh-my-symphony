@@ -158,6 +158,7 @@ class _AttemptState:
     # Last non-None `_running` entry this worker observed.
     running: RunningEntry
     client: AgentBackend
+    verify_candidate_sha: str | None = None
     after_run_pending: bool = False
     # Turn bookkeeping — set by `_open_session`, advanced by the loop.
     turn_number: int = 0
@@ -596,6 +597,15 @@ async def _run_turn_loop(orch: Orchestrator, st: _AttemptState) -> _AttemptExit 
             return turn_exit
 
         await _after_turn_hooks(orch, st)
+        if "verify_closure" in st.cfg.raw:
+            from . import verify_receipts
+            try:
+                await asyncio.to_thread(
+                    verify_receipts.complete, st.cfg, st.running, st.workspace.path,
+                    st.verify_candidate_sha, st.turn_number,
+                )
+            except Exception as exc:
+                return _AttemptExit("verify_receipt_error", str(exc))
         _checkpoint_completed_turn(orch, st)
 
         # Record the state the backend just operated on so the
@@ -793,6 +803,14 @@ async def _run_turn(
     orch._sync_backend_agent_pid(
         st.running_issue_id, _core()._backend_agent_pid(st.client)
     )
+    if "verify_closure" in st.cfg.raw:
+        from . import verify_receipts
+        try:
+            st.verify_candidate_sha = await asyncio.to_thread(
+                verify_receipts.begin, st.cfg, running, st.workspace.path, st.current_state
+            )
+        except Exception as exc:
+            return _AttemptExit("verify_receipt_error", str(exc))
     st.after_run_pending = True
     try:
         await st.client.run_turn(prompt=prompt, is_continuation=is_continuation)
@@ -919,6 +937,14 @@ async def _evaluate_turn_result(
     running.issue = st.issue
     state = normalize_state(st.issue.state)
     active = {s.lower() for s in st.cfg.tracker.active_states}
+    try:
+        st.issue, closure_rejected = await orch._enforce_verify_closure(st.cfg, st.issue)
+    except Exception as exc:
+        return _AttemptExit("phase_transition_error", str(exc))
+    running.issue = st.issue
+    if closure_rejected:
+        return _TurnFlow.STOP
+    state = normalize_state(st.issue.state)
     release_rewound = False
     if running.known_app_release_finalizer and state != st.prev_phase_state:
         try:

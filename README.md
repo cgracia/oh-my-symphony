@@ -1475,3 +1475,5 @@ Pipeline stage rules adapt the evidence-first ideas of [cskwork/backend-dev-skil
 ## License
 
 [Apache 2.0](LICENSE).
+
+Optional terminal evidence gate: [runtime-attested Verify closure](docs/verify-closure.md).

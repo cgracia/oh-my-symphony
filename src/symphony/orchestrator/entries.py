@@ -36,6 +36,8 @@ class RunningEntry:
     # board into `issue` mid-turn, so a rogue worker's own advance would
     # otherwise launder itself into the "authorized" baseline.
     authorized_state: str = ""
+    # Prevent a pinned verifier backend from attesting its own author session.
+    verify_session_authored: bool = False
     run_id: str = ""
     # A recovered attempt always owns a new run id. The predecessor link is
     # public history; the private checkpoint is consumed only by the backend

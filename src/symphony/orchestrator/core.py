@@ -4126,6 +4126,7 @@ class Orchestrator:
                 log.info("run_leases_expired", count=expired)
 
         await self._reconcile_running(cfg)
+        await self._sweep_verify_closure(cfg)
         # G1 — drop sticky locks for tickets no longer in flight. `_claimed`
         # gathers ids on every dispatch path that wants to skip a ticket on
         # the *current* tick (conflict_blocked, hit_max_turns,
@@ -9007,6 +9008,44 @@ class Orchestrator:
         )
         return replace(issue, state=target_state)
 
+    async def _enforce_verify_closure(
+        self, cfg: ServiceConfig, issue: Issue,
+    ) -> tuple[Issue, bool]:
+        if "verify_closure" not in cfg.raw:
+            return issue, False
+        from . import verify_receipts
+
+        passed, missing = await asyncio.to_thread(verify_receipts.evaluate, cfg, issue)
+        if passed:
+            return issue, False
+        policy = verify_receipts.contract(cfg)
+        assert policy is not None
+        # State first: a failed note write must never leave a false terminal.
+        # Failed state writes propagate into the caller's existing retry path.
+        target = policy["failure_state"]
+        await asyncio.to_thread(self._tracker_call_update_state, cfg, issue, target)
+        blocked = replace(issue, state=target)
+        await asyncio.to_thread(
+            self._tracker_call_append_note, cfg, blocked, "Verify Closure Rejected",
+            "Runtime condition rejected terminal acceptance. Missing/invalid evidence:\n"
+            + "\n".join(f"- {item}" for item in missing),
+        )
+        return blocked, True
+
+    async def _sweep_verify_closure(self, cfg: ServiceConfig) -> None:
+        from . import verify_receipts
+
+        if verify_receipts.contract(cfg) is None:
+            return
+        # Also observes cards with no running entry after a crash or restart.
+        # No cached terminal approval: current repository findings/lineage are
+        # re-read by the trusted predicate on every poll.
+        issues = await asyncio.to_thread(self._tracker_call_terminal_issues, cfg)
+        for issue in issues:
+            if issue.id in self._running or issue.id in self._terminal_persist_pending:
+                continue
+            await self._enforce_verify_closure(cfg, issue)
+
     async def _drain_exit_ownership_pending(self, cfg: ServiceConfig) -> None:
         """Retry pending worker-exit ownership validations (fail-closed).
 
@@ -9029,6 +9068,7 @@ class Orchestrator:
                 refreshed = await self._refresh_issue_state(cfg, issue_id)
                 if refreshed is None:
                     continue
+                refreshed, _ = await self._enforce_verify_closure(cfg, refreshed)
                 target = _stage_ownership_rewind_state(
                     cfg,
                     refreshed,
@@ -9361,6 +9401,12 @@ class Orchestrator:
                     )
                     self._record_tracker_error(issue.id, exc)
                     return
+                if entry.worker_task is not None:
+                    entry.worker_task.cancel()
+                return
+            issue, closure_rejected = await self._enforce_verify_closure(cfg, issue)
+            if closure_rejected:
+                entry.issue = issue
                 if entry.worker_task is not None:
                     entry.worker_task.cancel()
                 return
@@ -10001,6 +10047,13 @@ class Orchestrator:
         if self._workspace_manager is None:
             return
         for issue in terminals:
+            try:
+                issue, closure_rejected = await self._enforce_verify_closure(cfg, issue)
+                if closure_rejected:
+                    continue
+            except Exception as exc:
+                self._record_tracker_error(issue.id, exc)
+                continue
             (
                 issue,
                 release_evidence_only,
