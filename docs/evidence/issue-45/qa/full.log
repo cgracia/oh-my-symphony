@@ -1,0 +1,1479 @@
+...............ss....................................................... [  2%]
+...................................................................s.... [  5%]
+.s.....s................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 23%]
+.......................................................s................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................s............................... [ 54%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+...........................s............................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+..ssssssss.............................................................. [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+....................                                                     [100%]
+=============================== warnings summary ===============================
+tests/test_artifacts.py::TestServe::test_resolve_rejects_unknown_and_invalid
+  /run/current-system/sw/lib/python3.14/json/encoder.py:265: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a44f6a0>
+    def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_artifacts.py::TestServe::test_resolve_rejects_unknown_and_invalid
+  /run/current-system/sw/lib/python3.14/json/encoder.py:265: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a44f4c0>
+    def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_artifacts.py::TestServe::test_resolve_rejects_unknown_and_invalid
+  /run/current-system/sw/lib/python3.14/json/encoder.py:265: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a44e110>
+    def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_artifacts.py::TestServe::test_resolve_rejects_unknown_and_invalid
+  /run/current-system/sw/lib/python3.14/json/encoder.py:265: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a44e2f0>
+    def _make_iterencode(markers, _default, _encoder, _indent, _floatstr,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_backend_contract.py::test_codex_live_event_exposes_agent_pid
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a44c130>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_cli_run_startup.py::test_port_conflict_prints_actionable_sentence_not_traceback
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a4d6980>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_doctor.py::test_port_pass_when_unconfigured
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a4d7a60>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_doctor.py::test_port_pass_when_unconfigured
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a4d46d0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_doctor.py::test_port_pass_when_unconfigured
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a4d7880>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee3100>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2d40>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2e30>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2c50>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee26b0>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee25c0>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2200>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee3010>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_contracts.py::test_verify_accepts_multiple_cited_artifacts_when_all_exist
+  /run/current-system/sw/lib/python3.14/pathlib/__init__.py:205: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2b60>
+    self._str_normcase_cached = str(self)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_keeps_intervention_human_review_blocked
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2124: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee24d0>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_keeps_intervention_human_review_blocked
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2124: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2a70>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_keeps_intervention_human_review_blocked
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2124: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee31f0>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_keeps_intervention_human_review_blocked
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2124: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee33d0>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_keeps_intervention_human_review_blocked
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2124: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee3c40>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_keeps_intervention_human_review_blocked
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2124: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee3f10>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_worker_task_done_logs_exception_from_stale_pop_race
+  /tmp/symphony45/tests/test_orchestrator_dispatch.py:1447: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2110>
+    monkeypatch.setattr(core_module, "build_backend", lambda _init: _Backend())
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a222020>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4040>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee32e0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee35b0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee1990>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee2890>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee34c0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb6890>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_after_restart_acquires_linked_continuation_checkpoint
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb6f20>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee36a0>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a223010>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a2223e0>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5c60>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb6a70>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb57b0>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5d50>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_retry_schedule_write_through_and_continuation_clears_issue_flag
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2219: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5e40>
+    conn.execute("DELETE FROM issue_flags WHERE issue_id = ?", (issue_id,))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reconcile_stalls_from_start_when_only_codex_noise_seen
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee3b50>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_worker_exit_opencode_sigterm_schedules_retry_without_pause
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:628: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5030>
+    row = conn.execute("SELECT MAX(version) FROM schema_migrations").fetchone()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_worker_exit_opencode_sigterm_schedules_retry_without_pause
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:628: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb6980>
+    row = conn.execute("SELECT MAX(version) FROM schema_migrations").fetchone()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reconcile_terminal_cleanup_uses_terminal_seen_not_event_age
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/httpcore/_synchronization.py:240: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee3d30>
+    def __init__(self) -> None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reconcile_terminal_cleanup_uses_terminal_seen_not_event_age
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/httpcore/_synchronization.py:240: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb53f0>
+    def __init__(self) -> None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_auto_recovery_respects_disabled_config
+  /run/current-system/sw/lib/python3.14/concurrent/futures/thread.py:49: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d210>
+    @classmethod
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_tick_auto_recovery_respects_disabled_config
+  /run/current-system/sw/lib/python3.14/concurrent/futures/thread.py:49: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9ce50>
+    @classmethod
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee23e0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ee3a60>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5120>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb54e0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb49a0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5300>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb72e0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4e50>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4c70>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4f40>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb46d0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4a90>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7d30>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_recover_blocked_issue_repairs_partial_source_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb44f0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_turn_checkpoints_require_completion_event_and_workspace_hook[False]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/h11/_util.py:87: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c220>
+    match = regex.fullmatch(data)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_turn_checkpoints_require_completion_event_and_workspace_hook[False]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/h11/_util.py:87: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d7b0>
+    match = regex.fullmatch(data)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_does_not_block_phase_transitions
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2841: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e6b0>
+    def _sync_backend_agent_pid(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_does_not_block_phase_transitions
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2841: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e980>
+    def _sync_backend_agent_pid(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_does_not_block_phase_transitions
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2841: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9ea70>
+    def _sync_backend_agent_pid(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_does_not_block_phase_transitions
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2841: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f010>
+    def _sync_backend_agent_pid(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f4c0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f6a0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9ec50>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9eb60>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d300>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e890>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c4f0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e2f0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c7c0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g3_claim_release_timestamp_recorded_by_prune
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9dc60>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5a80>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7f10>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c5e0>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9de40>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e110>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d5d0>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e4d0>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f3d0>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc310>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_g2_empty_response_loop_resets_on_non_empty_turn
+  /tmp/symphony45/src/symphony/logging.py:28: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc5e0>
+    if any(c in value for c in " \t\"="):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_max_turns_exhaustion_does_not_double_dispatch
+  /run/current-system/sw/lib/python3.14/contextlib.py:112: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e7a0>
+    doc = getattr(func, "__doc__", None)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_max_turns_exhaustion_does_not_double_dispatch
+  /run/current-system/sw/lib/python3.14/contextlib.py:112: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c310>
+    doc = getattr(func, "__doc__", None)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_stage_kinds_route_by_state_and_skip_pin_stamp
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2937: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a222d40>
+    def _try_acquire_run_lease(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_stage_kinds_route_by_state_and_skip_pin_stamp
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2937: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d8a0>
+    def _try_acquire_run_lease(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_stage_kinds_route_by_state_and_skip_pin_stamp
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2937: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9da80>
+    def _try_acquire_run_lease(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_stage_kinds_route_by_state_and_skip_pin_stamp
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2937: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f1f0>
+    def _try_acquire_run_lease(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_dispatch_stage_kinds_route_by_state_and_skip_pin_stamp
+  /tmp/symphony45/src/symphony/orchestrator/core.py:2937: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9ef20>
+    def _try_acquire_run_lease(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reopen_over_budget_is_parked_in_blocked_with_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579b6215d0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reopen_over_budget_is_parked_in_blocked_with_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f880>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reopen_over_budget_is_parked_in_blocked_with_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f790>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reopen_over_budget_is_parked_in_blocked_with_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d6c0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_dispatch.py::test_reopen_over_budget_is_parked_in_blocked_with_note
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9df30>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_health.py::test_health_endpoint_returns_status
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/aiohttp/web_urldispatcher.py:341: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f970>
+    self._allowed_methods: set[str] = set()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_health.py::test_health_endpoint_returns_status
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/aiohttp/web_urldispatcher.py:341: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9ff10>
+    self._allowed_methods: set[str] = set()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_health.py::test_health_endpoint_returns_status
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/aiohttp/web_urldispatcher.py:341: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9fd30>
+    self._allowed_methods: set[str] = set()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_health.py::test_health_endpoint_returns_status
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/aiohttp/web_urldispatcher.py:341: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a2215d0>
+    self._allowed_methods: set[str] = set()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_phase_transition.py::test_same_phase_does_not_restart_backend
+  /run/current-system/sw/lib/python3.14/asyncio/futures.py:371: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4310>
+    def _chain_future(source, destination):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_phase_transition.py::test_same_phase_does_not_restart_backend
+  /run/current-system/sw/lib/python3.14/asyncio/futures.py:371: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7880>
+    def _chain_future(source, destination):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_phase_transition.py::test_verify_rewind_renders_is_rewind_in_first_prompt
+  /tmp/symphony45/src/symphony/orchestrator/parsing.py:43: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d030>
+    matches = list(heading_re.finditer(text))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_phase_transition.py::test_verify_rewind_renders_is_rewind_in_first_prompt
+  /tmp/symphony45/src/symphony/orchestrator/parsing.py:43: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e3e0>
+    matches = list(heading_re.finditer(text))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_phase_transition.py::test_verify_rewind_renders_is_rewind_in_first_prompt
+  /tmp/symphony45/src/symphony/orchestrator/parsing.py:43: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9fc40>
+    matches = list(heading_re.finditer(text))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_reconcile.py::test_reconcile_does_not_cancel_a_pinned_worker_inside_its_own_budget
+  /tmp/symphony45/src/symphony/orchestrator/core.py:9120: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e200>
+    async def _reconcile_running(self, cfg: ServiceConfig) -> None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_stale_evidence_verify_to_terminal_is_gated_before_worker_exit
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9cc70>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_stale_evidence_verify_to_terminal_is_gated_before_worker_exit
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d120>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_concurrent_worker_and_reconcile_create_one_red_release_lifecycle
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:38: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9dd50>
+    def __init__(self, token_number, required, index, line, column, mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_concurrent_worker_and_reconcile_create_one_red_release_lifecycle
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:38: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9cb80>
+    def __init__(self, token_number, required, index, line, column, mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_concurrent_worker_and_reconcile_create_one_red_release_lifecycle
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:38: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d990>
+    def __init__(self, token_number, required, index, line, column, mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_concurrent_worker_and_reconcile_create_one_red_release_lifecycle
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:38: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c130>
+    def __init__(self, token_number, required, index, line, column, mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x74579a222b60>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9ed40>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7790>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7a60>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb71f0>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5990>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc130>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_release_cycle_precreate_reservation_survives_crash_and_label_loss[QUALITY--repair-frontend]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:98: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc8b0>
+    def __init__(self, value, plain, start_mark, end_mark, style=None):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_existing_pending_gate_reopens_terminal_finalizer_before_first_lease
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7b50>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_existing_pending_gate_reopens_terminal_finalizer_before_first_lease
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4220>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_existing_pending_gate_reopens_terminal_finalizer_before_first_lease
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5b70>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_existing_pending_gate_reopens_terminal_finalizer_before_first_lease
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb48b0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_existing_pending_gate_reopens_terminal_finalizer_before_first_lease
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4130>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_finalizer_dispatch_matrix[approved-current-True]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4400>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_finalizer_dispatch_matrix[approved-current-True]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5f30>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_finalizer_dispatch_matrix[approved-current-True]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb76a0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_finalizer_dispatch_matrix[approved-current-True]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb75b0>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_finalizer_dispatch_matrix[approved-current-True]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/tokens.py:3: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7010>
+    def __init__(self, start_mark, end_mark):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_green_verifier_approves_exact_gate
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb4d60>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_green_verifier_approves_exact_gate
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7e20>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_green_verifier_approves_exact_gate
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb55d0>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_green_verifier_approves_exact_gate
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f2e0>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_green_verifier_approves_exact_gate
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9ca90>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_failed_terminal_verifier_blocks_finalizer[Rejected]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9d4e0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_failed_terminal_verifier_blocks_finalizer[Rejected]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c8b0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_failed_terminal_verifier_blocks_finalizer[Rejected]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f100>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_host_release_authority_failed_terminal_verifier_blocks_finalizer[Rejected]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb6020>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_stale_finalizer_cannot_adopt_reapproved_cycle_between_turns
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e5c0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_stale_finalizer_cannot_adopt_reapproved_cycle_between_turns
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9f5b0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_stale_finalizer_cannot_adopt_reapproved_cycle_between_turns
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc220>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_stale_finalizer_cannot_adopt_reapproved_cycle_between_turns
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add210>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_stale_finalizer_cannot_adopt_reapproved_cycle_between_turns
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc7c0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_startup_rejects_replayed_completed_finalizer_ticket_version
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9fe20>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_startup_rejects_replayed_completed_finalizer_ticket_version
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add5d0>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_startup_rejects_replayed_completed_finalizer_ticket_version
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adcc70>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_startup_rejects_replayed_completed_finalizer_ticket_version
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc040>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_startup_rejects_replayed_completed_finalizer_ticket_version
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add4e0>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_reconcile_late_app_release_label_rewinds_before_cleanup_or_delivery
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add990>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_reconcile_late_app_release_label_rewinds_before_cleanup_or_delivery
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc400>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_reconcile_late_app_release_label_rewinds_before_cleanup_or_delivery
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add120>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_reconcile_late_app_release_label_rewinds_before_cleanup_or_delivery
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add3f0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_reconcile_late_app_release_label_rewinds_before_cleanup_or_delivery
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add300>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_orchestrator_release_contract_integration.py::test_reconcile_late_app_release_label_rewinds_before_cleanup_or_delivery
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add8a0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_progress_md.py::test_observer_writes_file_and_detects_transitions
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9c040>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_progress_md.py::test_observer_writes_file_and_detects_transitions
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adde40>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_progress_md.py::test_observer_writes_file_and_detects_transitions
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/scanner.py:286: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ade5c0>
+    for level in list(self.possible_simple_keys):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_provider_capacity_parks.py::test_host_resource_park_keeps_existing_slot_semantics[monthly limit reached]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb56c0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_provider_capacity_parks.py::test_host_resource_park_keeps_existing_slot_semantics[monthly limit reached]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb6c50>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_provider_capacity_parks.py::test_host_resource_park_keeps_existing_slot_semantics[monthly limit reached]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9fb50>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_provider_capacity_parks.py::test_host_resource_park_keeps_existing_slot_semantics[monthly limit reached]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7100>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_provider_capacity_parks.py::test_host_resource_park_keeps_existing_slot_semantics[monthly limit reached]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adce50>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_provider_capacity_parks.py::test_host_resource_park_keeps_existing_slot_semantics[monthly limit reached]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799add6c0>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_quota_park_slots.py::test_resume_with_full_capacity_waits_then_uses_normal_dispatch[In Progress-agy]
+  /home/carlos/dev/oh-my-symphony/.venv/lib/python3.14/site-packages/yaml/error.py:6: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adf790>
+    def __init__(self, name, index, line, column, buffer, pointer):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_run_registry_heartbeat_persists_backend_agent_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb73d0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_run_registry_heartbeat_persists_backend_agent_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adfe20>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_run_registry_heartbeat_persists_backend_agent_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adf970>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adf880>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adfa60>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adff10>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adfd30>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adcd60>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799addd50>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799ade110>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adfc40>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adf3d0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_approve_release_gate_requires_exact_active_bound_run[completed-False]
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799adc6d0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb5210>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb74c0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9cd60>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799d9e020>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464f40>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464400>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464310>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464040>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_v5_release_completion_without_ticket_token_is_invalidated
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994653f0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_attempt_events_drop_oldest_deterministically
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2086: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465120>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_attempt_events_drop_oldest_deterministically
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2086: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994649a0>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_attempt_events_drop_oldest_deterministically
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2086: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464220>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_attempt_events_drop_oldest_deterministically
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2086: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464e50>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_attempt_events_drop_oldest_deterministically
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2086: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994654e0>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_attempt_events_drop_oldest_deterministically
+  /tmp/symphony45/src/symphony/orchestrator/run_registry.py:2086: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994645e0>
+    ).fetchall()
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_deleting_run_cleans_attempt_events
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464130>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_deleting_run_cleans_attempt_events
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464c70>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_deleting_run_cleans_attempt_events
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464d60>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_deleting_run_cleans_attempt_events
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799464a90>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_deleting_run_cleans_attempt_events
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994644f0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_deleting_run_cleans_attempt_events
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994655d0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_deleting_run_cleans_attempt_events
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465300>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994658a0>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465a80>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465990>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465b70>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465c60>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465d50>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465e40>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_run_registry.py::test_graceful_shutdown_checkpoint_requires_cleared_backend_pid
+  /tmp/symphony45/src/symphony/orchestrator/migrations.py:53: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465f30>
+    return {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465030>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799fb7970>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799465210>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994647c0>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994657b0>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799466020>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x745799466110>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_scheduler.py::test_dependency_cycle_detection_handles_deep_acyclic_chain_iteratively
+  /tmp/symphony45/tests/test_scheduler.py:102: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7457994664d0>
+    edges = {(str(index), str(index + 1)) for index in range(1_499)}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.14.7-final-0 ________________
+
+Name                                              Stmts   Miss  Cover
+---------------------------------------------------------------------
+src/symphony/__init__.py                              1      0   100%
+src/symphony/__main__.py                              5      5     0%
+src/symphony/_shell.py                              217     87    60%
+src/symphony/agent.py                                 4      4     0%
+src/symphony/artifacts.py                           339     59    83%
+src/symphony/backends/__init__.py                    96      1    99%
+src/symphony/backends/agy.py                          7      0   100%
+src/symphony/backends/approval_policy.py             37      0   100%
+src/symphony/backends/claude_code.py                138      8    94%
+src/symphony/backends/codex.py                      556    104    81%
+src/symphony/backends/gemini.py                      64      3    95%
+src/symphony/backends/kiro.py                        21      1    95%
+src/symphony/backends/opencode.py                   233     16    93%
+src/symphony/backends/per_turn.py                   328     31    91%
+src/symphony/backends/pi.py                         160     16    90%
+src/symphony/backends/plain_cli.py                   23      0   100%
+src/symphony/backends/prime_agent.py                 39      3    92%
+src/symphony/chat.py                               1068    140    87%
+src/symphony/cli/__init__.py                          3      0   100%
+src/symphony/cli/__main__.py                          5      5     0%
+src/symphony/cli/board.py                           276     18    93%
+src/symphony/cli/doctor.py                          537     90    83%
+src/symphony/cli/main.py                            212     46    78%
+src/symphony/cli/project.py                         111     22    80%
+src/symphony/cli/release.py                          87     23    74%
+src/symphony/continuous_improvement.py              816     77    91%
+src/symphony/errors.py                               96      0   100%
+src/symphony/hub.py                                 232     57    75%
+src/symphony/i18n.py                                 32      0   100%
+src/symphony/intent.py                              138      6    96%
+src/symphony/issue.py                                74      1    99%
+src/symphony/logging.py                              80      3    96%
+src/symphony/mock_codex.py                          134    134     0%
+src/symphony/notifications/__init__.py                5      0   100%
+src/symphony/notifications/config.py                 72      4    94%
+src/symphony/notifications/dispatcher.py             29      1    97%
+src/symphony/notifications/events.py                 19      0   100%
+src/symphony/notifications/slack.py                  55      5    91%
+src/symphony/orchestrator/__init__.py                10      0   100%
+src/symphony/orchestrator/attempt.py                450     65    86%
+src/symphony/orchestrator/constants.py               28      0   100%
+src/symphony/orchestrator/contracts.py              360     18    95%
+src/symphony/orchestrator/core.py                  3724    628    83%
+src/symphony/orchestrator/diagnostics.py             86     28    67%
+src/symphony/orchestrator/dispatch_state.py          42      0   100%
+src/symphony/orchestrator/entries.py                122      0   100%
+src/symphony/orchestrator/executors.py               23      0   100%
+src/symphony/orchestrator/helpers.py                203     25    88%
+src/symphony/orchestrator/migrations.py             151      8    95%
+src/symphony/orchestrator/parsing.py                 95      8    92%
+src/symphony/orchestrator/release_contracts.py      827    116    86%
+src/symphony/orchestrator/release_cycle.py          345     52    85%
+src/symphony/orchestrator/release_transition.py     120     25    79%
+src/symphony/orchestrator/run_registry.py           810    114    86%
+src/symphony/orchestrator/scheduler.py              184     16    91%
+src/symphony/orchestrator/verify_receipts.py        136     15    89%
+src/symphony/orchestrator/worker_exit.py            356     51    86%
+src/symphony/product_preview.py                     206     19    91%
+src/symphony/progress_md.py                         209     24    89%
+src/symphony/projects.py                            649    130    80%
+src/symphony/prompt.py                              338     75    78%
+src/symphony/prompt_context.py                      120      1    99%
+src/symphony/pyright.py                              28      1    96%
+src/symphony/runtime_safety.py                       28      5    82%
+src/symphony/server.py                              117     14    88%
+src/symphony/service.py                             641    138    78%
+src/symphony/service_identity.py                     16      0   100%
+src/symphony/skills.py                               78     10    87%
+src/symphony/stats.py                               217     17    92%
+src/symphony/ticket_markdown.py                      47      0   100%
+src/symphony/trackers/__init__.py                    34      6    82%
+src/symphony/trackers/_retry.py                      50      7    86%
+src/symphony/trackers/file.py                       655     85    87%
+src/symphony/trackers/jira.py                       290     18    94%
+src/symphony/trackers/linear.py                     182      5    97%
+src/symphony/trackers/validate.py                   112      1    99%
+src/symphony/tui/__init__.py                          7      0   100%
+src/symphony/tui/app.py                             689    190    72%
+src/symphony/tui/constants.py                        10      0   100%
+src/symphony/tui/helpers.py                         162     21    87%
+src/symphony/tui/screens.py                         232     28    88%
+src/symphony/tui/widgets.py                         361     58    84%
+src/symphony/utils/__init__.py                        0      0   100%
+src/symphony/utils/archive.py                        25      0   100%
+src/symphony/utils/atomic_json.py                    39      2    95%
+src/symphony/utils/auto_merge.py                     97      9    91%
+src/symphony/utils/git_inspect.py                   228     36    84%
+src/symphony/utils/git_ops.py                       102     24    76%
+src/symphony/utils/git_sandbox.py                   114     19    83%
+src/symphony/utils/keep_awake.py                     58     10    83%
+src/symphony/utils/wiki_sweep.py                    190     15    92%
+src/symphony/webapi.py                             1634    197    88%
+src/symphony/workflow/__init__.py                     9      0   100%
+src/symphony/workflow/builder.py                    458     51    89%
+src/symphony/workflow/coercion.py                    86      7    92%
+src/symphony/workflow/config.py                     279     11    96%
+src/symphony/workflow/constants.py                   60      0   100%
+src/symphony/workflow/mutate.py                     348     34    90%
+src/symphony/workflow/parser.py                      49      5    90%
+src/symphony/workflow/preflight.py                   62      2    97%
+src/symphony/workflow/presets.py                     39      0   100%
+src/symphony/workflow/state.py                       30      2    93%
+src/symphony/workspace.py                           586     99    83%
+---------------------------------------------------------------------
+TOTAL                                             24392   3515    86%
+Required test coverage of 80% reached. Total coverage: 85.59%
+2740 passed, 16 skipped, 221 warnings in 180.38s (0:03:00)
