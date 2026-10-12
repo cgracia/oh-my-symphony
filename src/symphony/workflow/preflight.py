@@ -37,6 +37,12 @@ def stage_turn_budget_error(config: ServiceConfig) -> str | None:
 
 
 def validate_for_dispatch(config: ServiceConfig) -> None:
+    from ..orchestrator.verify_receipts import contract
+
+    try:
+        contract(config)
+    except ValueError as exc:
+        raise ConfigValidationError(str(exc)) from exc
     if not config.tracker.kind:
         raise UnsupportedTrackerKind("tracker.kind is required")
     if config.tracker.kind not in SUPPORTED_TRACKER_KINDS:
