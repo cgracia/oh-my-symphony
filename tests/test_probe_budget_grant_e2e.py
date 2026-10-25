@@ -16,7 +16,7 @@ This is not a live model run and produces no real Verify receipt.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import replace
+from dataclasses import fields, replace
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -62,13 +62,14 @@ def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             max_turns=10,
             max_total_turns=30,
             budget_exhausted_state="Blocked",
-            budget_grant_max_turns=10,
             # As in the HACP lane: no auto-recovery, commit or merge.
             auto_recover_blocked=False,
             auto_commit_on_done=False,
             auto_merge_on_done=False,
         ),
     )
+    if "budget_grant_max_turns" in {f.name for f in fields(cfg.agent)}:
+        cfg = replace(cfg, agent=replace(cfg.agent, budget_grant_max_turns=10))
     tracker = FileBoardTracker(cfg.tracker)
     tracker.create(
         identifier=ID,

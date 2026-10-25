@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from dataclasses import replace
+from dataclasses import fields, replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -53,17 +53,17 @@ def _cfg(tmp_path: Path, **agent_overrides):
     )
     board_root = tmp_path / "kanban"
     board_root.mkdir(exist_ok=True)
-    agent = replace(
-        base.agent,
-        **{
-            "stage_kinds": dict(STAGE_KINDS),
-            "max_turns": 10,
-            "max_total_turns": 30,
-            "budget_exhausted_state": "Blocked",
-            "budget_grant_max_turns": 10,
-            **agent_overrides,
-        },
-    )
+    settings = {
+        "stage_kinds": dict(STAGE_KINDS),
+        "max_turns": 10,
+        "max_total_turns": 30,
+        "budget_exhausted_state": "Blocked",
+        "budget_grant_max_turns": 10,
+        **agent_overrides,
+    }
+    # Unpatched runtimes have no grant knob; guards must still run there.
+    known = {f.name for f in fields(base.agent)}
+    agent = replace(base.agent, **{k: v for k, v in settings.items() if k in known})
     return replace(
         base, tracker=replace(base.tracker, board_root=board_root), agent=agent
     )
