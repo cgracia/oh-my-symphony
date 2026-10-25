@@ -694,3 +694,47 @@ def test_G19c_SEAM_replay_rechecks_the_ledger_after_its_awaits(tmp_path, monkeyp
     _grant(orch, turns=1)
     assert _fetch(orch, cfg).state == "Blocked"
     assert _flag(orch, issue_id) and issue_id in orch._turn_budget_exhausted
+
+
+def test_G19d_SEAM_no_dispatch_while_a_grant_moves_the_card(tmp_path, monkeypatch):
+    orch, cfg, issue_id = _incident(tmp_path)
+    seen = []
+    real_update = orch._tracker_call_update_state
+
+    def _update(cfg_, issue, state):
+        seen.append(issue.id in orch._budget_grant_converging)
+        return real_update(cfg_, issue, state)
+
+    monkeypatch.setattr(orch, "_tracker_call_update_state", _update)
+    assert _grant(orch)[0]
+    assert seen == [True] and issue_id not in orch._budget_grant_converging
+    assert _eligibility(orch, cfg) is None or (
+        _eligibility(orch, cfg).code != "budget_grant_converging"
+    )
+    orch._budget_grant_converging.add(issue_id)  # what a tick sees meanwhile
+    assert _eligibility(orch, cfg).code == "budget_grant_converging"
+
+
+def test_G19e_SEAM_replay_refuses_the_move_when_the_lease_is_unknown(
+    tmp_path, monkeypatch
+):
+    orch, cfg, issue_id = _incident(tmp_path)
+    issue = _fetch(orch, cfg)
+    registry = orch._run_registry
+    assert registry.grant_budget(
+        grant_id="gh-t-grant-0001", issue_id=issue_id, identifier=ID,
+        actor=ACTOR, reason=REASON, extra_turns=3, lifetime_cap=10,
+        from_state=issue.state, target_state="Verify",
+    ).status == "granted"
+    real_lease = registry.has_active_lease
+    calls = []
+
+    def _lease(issue_id_):
+        calls.append(issue_id_)
+        if len(calls) > 1:  # the pre-commit check passes; the fence's read fails
+            raise RuntimeError("injected lease read error")
+        return real_lease(issue_id_)
+
+    monkeypatch.setattr(registry, "has_active_lease", _lease)
+    _grant(orch)
+    assert len(calls) == 2 and _fetch(orch, cfg).state == "Blocked"

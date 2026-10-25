@@ -1078,6 +1078,9 @@ class Orchestrator:
         # ticket dispatches until it loads, so a granted ticket can never
         # fall back to ordinary turn accounting.
         self._budget_grants_unread = False
+        # Tickets a grant call is still moving into their lane: no dispatch
+        # until that move lands, so it cannot race a granted run.
+        self._budget_grant_converging: set[str] = set()
         # Tickets whose worker-exit handler is mid-flight. `_on_worker_exit`
         # adds the id on entry and clears it in a `finally`, so from the moment
         # a worker leaves `_running` until its terminal-state persist (or retry
@@ -3191,6 +3194,7 @@ class Orchestrator:
         self._turn_budget_exhausted.clear()
         self._budget_granted.clear()
         self._budget_grants_unread = False
+        self._budget_grant_converging.clear()
         self._lease_blocked.clear()
         self._blocked_rca_source_ids.clear()
         self._history_recovery_attempted.clear()
@@ -5289,6 +5293,25 @@ class Orchestrator:
             )
         self._turn_budget_exhausted.discard(issue.id)
         self._budget_granted.add(issue.id)
+        self._budget_grant_converging.add(issue.id)
+        try:
+            return await self._converge_budget_grant(
+                cfg, issue, grant, result, cap, details
+            )
+        finally:
+            self._budget_grant_converging.discard(issue.id)
+
+    async def _converge_budget_grant(
+        self,
+        cfg: ServiceConfig,
+        issue: Issue,
+        grant: Any,
+        result: Any,
+        cap: int,
+        details: dict[str, Any],
+    ) -> tuple[bool, str, dict[str, Any]]:
+        """Mirror and move a committed grant; dispatch waits until it returns."""
+        identifier, grant_id = issue.identifier, grant.grant_id
         debug = self._issue_debug.setdefault(issue.id, _IssueDebug())
         if result.status == "granted":
             debug.last_error = None
@@ -5297,11 +5320,11 @@ class Orchestrator:
                 "budget_grant_recorded",
                 identifier=identifier,
                 grant_id=grant_id,
-                actor=actor,
-                extra_turns=extra_turns,
+                actor=grant.actor,
+                extra_turns=grant.extra_turns,
                 granted_total=result.granted_total,
                 lifetime_cap=cap,
-                reason=reason,
+                reason=grant.reason,
             )
         details["mirror"] = await self._mirror_budget_grant(cfg, issue, grant, result, cap)
         fresh = await asyncio.to_thread(
@@ -5410,10 +5433,10 @@ class Orchestrator:
     def _budget_grant_unstarted(self, issue_id: str, grant_id: str) -> bool:
         """True only when the ledger shows `grant_id` unspent and idle."""
         registry = self._run_registry
-        if (
-            registry is None
-            or issue_id in self._running
-            or self._has_active_run_lease(issue_id)
+        if registry is None or issue_id in self._running:
+            return False
+        if self._registry_guard(
+            "has_active_lease", lambda: registry.has_active_lease(issue_id), True
         ):
             return False
         held = self._registry_guard(
@@ -6256,6 +6279,12 @@ class Orchestrator:
                 _EligibilityDisposition.REJECT,
                 "budget_exhausted",
                 "turn budget exhausted",
+            )
+        if issue.id in self._budget_grant_converging:
+            return _EligibilityDecision(
+                _EligibilityDisposition.REJECT,
+                "budget_grant_converging",
+                "operator budget grant is moving the ticket",
             )
         if self._budget_grants_unread and not (
             self._run_registry is not None
