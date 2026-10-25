@@ -5308,9 +5308,14 @@ class Orchestrator:
             self._tracker_call_fetch_issue_full_by_id, cfg, identifier
         )
         current = fresh or issue
-        if normalize_state(current.state) == normalize_state(grant.from_state):
-            # Only a card still parked where the grant found it moves; a
-            # replay never drags a ticket that was moved since.
+        if normalize_state(
+            current.state
+        ) == normalize_state(grant.from_state) and self._budget_grant_unstarted(
+            issue.id, grant_id
+        ):
+            # Only a card still parked where the grant found it moves, and
+            # only while no granted turn has started; re-checked here, after
+            # the awaits above, so a replay never drags a later hold back.
             try:
                 await asyncio.to_thread(
                     self._tracker_call_update_state, cfg, current, grant.target_state
@@ -5374,31 +5379,56 @@ class Orchestrator:
     ) -> str | None:
         """The Verify lane a grant into `target` would skip, if any.
 
-        The hold lane is the earliest of the registry's record and the card's
-        own lane when that is active; with neither, the first active lane. A
-        lane is skipped when it lies at or after the hold lane and before the
-        target, so a ticket held in Verify (or earlier) never resumes past it.
+        The hold lane is the registry's record, or the card's own lane when
+        that is earlier (board edits never move it forward). Without a usable
+        record, including a read error or a hold older than the record, it is
+        the first active lane. A lane is skipped when it lies at or after the
+        hold lane and before the target, so a ticket held in Verify (or
+        earlier) never resumes past it.
         """
         order = [normalize_state(state) for state in cfg.tracker.active_states]
         registry = self._run_registry
-        recorded = (
+        recorded = normalize_state(
             self._registry_guard(
                 "budget_hold_lane", lambda: registry.budget_hold_lane(issue.id), None
             )
+            or ""
             if registry is not None
-            else None
+            else ""
         )
-        held = [
-            order.index(lane)
-            for lane in (normalize_state(recorded or ""), normalize_state(issue.state))
-            if lane in order
-        ]
-        start = min(held) if held else 0
+        start = 0
+        if recorded in order:
+            start = order.index(recorded)
+            if normalize_state(issue.state) in order:
+                start = min(start, order.index(normalize_state(issue.state)))
         end = order.index(normalize_state(target))
         for state in cfg.tracker.active_states[start:end]:
             if normalize_state(state) == "verify":
                 return state
         return None
+
+    def _budget_grant_unstarted(self, issue_id: str, grant_id: str) -> bool:
+        """True only when the ledger shows `grant_id` unspent and idle."""
+        registry = self._run_registry
+        if (
+            registry is None
+            or issue_id in self._running
+            or self._has_active_run_lease(issue_id)
+        ):
+            return False
+        held = self._registry_guard(
+            "get_issue_flags",
+            lambda: bool(
+                (flags := registry.get_issue_flags(issue_id)) and flags.budget_exhausted
+            ),
+            True,
+        )
+        grants = self._registry_guard(
+            "list_budget_grants", lambda: registry.list_budget_grants(issue_id), []
+        )
+        return not held and any(
+            g.grant_id == grant_id and g.turns_used == 0 for g in grants
+        )
 
     def _budget_grant_active(self, issue_id: str) -> bool:
         return issue_id in self._budget_granted

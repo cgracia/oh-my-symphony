@@ -641,3 +641,56 @@ def test_G19b_SEAM_an_unstarted_replay_moves_only_a_card_still_parked(tmp_path):
     _changed, _message, details = _grant(orch)
     assert details["status"] == "replayed"
     assert _fetch(orch, cfg).state == "Done"
+
+
+@pytest.mark.parametrize("history", ["missing", "unreadable"])
+def test_G18c_SEAM_without_hold_history_the_card_lane_is_not_trusted(
+    tmp_path, monkeypatch, history
+):
+    """A hold older than the record (or a failed read) counts from the first
+    active lane, even when the card was edited forward to Document."""
+    orch, cfg, _issue_id = _incident(tmp_path, lane="Verify")
+    registry = orch._run_registry
+    if history == "missing":
+        registry._connect().execute("DELETE FROM budget_holds")
+    else:
+
+        def _boom(*_a, **_k):
+            raise RuntimeError("injected hold read error")
+
+        monkeypatch.setattr(registry, "budget_hold_lane", _boom)
+    _move(orch, cfg, "Document")
+    changed, message, _ = _grant(orch, target="Document")
+    assert not changed and "may not skip Verify" in message
+
+
+def test_G19c_SEAM_replay_rechecks_the_ledger_after_its_awaits(tmp_path, monkeypatch):
+    """A replay that yields while the ticket spends its grant and parks again
+    must not move that later hold back into the target lane."""
+    orch, cfg, issue_id = _incident(tmp_path)
+    assert _grant(orch, turns=1)[0]  # moved to Verify, no turn yet
+    real_mirror = orch._mirror_budget_grant
+
+    async def _mirror_while_the_ticket_runs(*args, **kwargs):
+        # Dispatch runs the granted turn and the grant-spent exit re-parks
+        # the card in Blocked, the grant's own `from_state`.
+        assert orch._charge_budget_grant_turn(issue_id)
+        issue = _fetch(orch, cfg)
+        entry = RunningEntry(
+            issue=issue,
+            started_at=issue.created_at,
+            retry_attempt=None,
+            worker_task=None,  # type: ignore[arg-type]
+            workspace_path=tmp_path / "ws" / ID,
+            agent_kind="claude",
+            state_at_turn_start=issue.state,
+        )
+        debug = orch._issue_debug.setdefault(issue.id, _IssueDebug())
+        await worker_exit._stop_on_budget_grant_spent(orch, cfg, issue.id, entry, debug)
+        return await real_mirror(*args, **kwargs)
+
+    monkeypatch.setattr(orch, "_mirror_budget_grant", _mirror_while_the_ticket_runs)
+    assert _fetch(orch, cfg).state == "Verify"
+    _grant(orch, turns=1)
+    assert _fetch(orch, cfg).state == "Blocked"
+    assert _flag(orch, issue_id) and issue_id in orch._turn_budget_exhausted
