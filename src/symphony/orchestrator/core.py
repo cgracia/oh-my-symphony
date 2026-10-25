@@ -7944,12 +7944,21 @@ class Orchestrator:
             )
             budget_detail = f"(state_turns={count}, effective_max_state_turns={limit})"
         elif budget_kind == "budget_grant":
-            granted, used = (
-                self._run_registry.budget_grant_totals(issue_id)
-                if self._run_registry is not None
-                else (0, 0)
+            registry = self._run_registry
+            totals = (
+                self._registry_guard(
+                    "budget_grant_totals",
+                    lambda: registry.budget_grant_totals(issue_id),
+                    None,
+                )
+                if registry is not None
+                else None
             )
-            budget_detail = f"(granted turns used {used}/{granted})"
+            budget_detail = (
+                f"(granted turns used {totals[1]}/{totals[0]})"
+                if totals is not None
+                else "(granted turns: ledger unreadable)"
+            )
         else:
             budget_detail = f"(max_total_turns={cfg.agent.max_total_turns})"
         note_body = (
