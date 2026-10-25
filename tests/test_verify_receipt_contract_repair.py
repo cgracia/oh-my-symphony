@@ -265,9 +265,13 @@ def _failed_verify_contract(**kwargs) -> ContractResult:
     )
 
 
-@pytest.mark.parametrize("with_fix", [True, False], ids=["carry", "no-carry"])
+@pytest.mark.parametrize(
+    "with_fix,qa_tail",
+    [(True, True), (True, False), (False, True)],
+    ids=["carry", "carry-unproven-tail", "no-carry"],
+)
 def test_actual_turn_loop_gh140_contract_repair_keeps_receipt(
-    case, monkeypatch, with_fix
+    case, monkeypatch, with_fix, qa_tail
 ):
     """In Progress -> Verify (approve, QA commit) -> contract rewind ->
     Verify repair (QA commit, no closure) -> Document -> Human Review."""
@@ -305,6 +309,16 @@ def test_actual_turn_loop_gh140_contract_repair_keeps_receipt(
                 if len(verify_turns) == 1:
                     (workspace / "closure.json").write_text(json.dumps(closure(sha)))
                 _commit(workspace, f"evidence-{len(verify_turns)}.md")
+            if stage == "Document":
+                # The trusted condition now judges the real PR head: the
+                # candidate-to-head tail is authorized only when QA-only.
+                head = subprocess.check_output(
+                    ["git", "-C", str(workspace), "rev-parse", "HEAD"], text=True
+                ).strip()
+                policy = json.loads(policy_file.read_text())
+                policy["candidate_sha"] = head
+                policy["qa_descendants"] = [[sha, head]] if qa_tail else []
+                policy_file.write_text(json.dumps(policy))
             board["issue"] = replace(
                 board["issue"],
                 state={
@@ -327,7 +341,7 @@ def test_actual_turn_loop_gh140_contract_repair_keeps_receipt(
     receipt = _receipt(case)
     if with_fix:
         assert receipt is not None and receipt["candidate_sha"] == sha
-        assert board["issue"].state == "Human Review"
+        assert board["issue"].state == ("Human Review" if qa_tail else "Blocked")
     else:
         # The GH-140 outcome: the independent Verify happened, its proof did not
         # survive the repair turn, and closure fails for want of a receipt.
