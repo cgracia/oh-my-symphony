@@ -7329,6 +7329,11 @@ class Orchestrator:
             running_entry = self._running.get(running_issue_id)
             if running_entry is not None:
                 running_entry.issue = issue
+                from . import verify_receipts
+
+                verify_receipts.mark_contract_repair(
+                    cfg, running_entry, producing_state
+                )
             return _StageContractOutcome(
                 issue=issue,
                 current_state=normalize_state(issue.state),

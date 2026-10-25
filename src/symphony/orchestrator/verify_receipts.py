@@ -15,10 +15,13 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from ..logging import get_logger
 from ..utils import git_inspect
 from ..issue import Issue, normalize_state
 from ..workflow import ServiceConfig
 from .entries import RunningEntry
+
+log = get_logger()
 
 
 class ConditionUnavailable(RuntimeError):
@@ -107,19 +110,105 @@ def artifact_path(workspace: Path, policy: dict[str, Any]) -> Path:
     return path
 
 
+def _event(event: str, entry: RunningEntry, **fields: Any) -> None:
+    """One receipt lifecycle line: identities and SHAs, never artifact bytes."""
+    log.info(
+        event,
+        issue_id=entry.issue.id,
+        identifier=entry.issue.identifier,
+        run_id=entry.run_id,
+        **fields,
+    )
+
+
+def mark_contract_repair(
+    cfg: ServiceConfig, entry: RunningEntry, producing_state: str
+) -> None:
+    """A stage contract rewound a completed Verify turn back into Verify.
+
+    The next Verify turn repairs board evidence for the same run; `begin`
+    may carry this run's receipt across it (see `_carry_problem`)."""
+    try:
+        policy = contract(cfg)
+    except ValueError:
+        return  # `begin` refuses the misconfiguration itself
+    if policy is not None and normalize_state(producing_state) == normalize_state(
+        policy["verify_state"]
+    ):
+        entry.verify_contract_repair = True
+
+
+def _carry_problem(
+    policy: dict[str, Any],
+    entry: RunningEntry,
+    prior: tuple[bytes, dict[str, Any]] | None,
+    head: str,
+) -> str | None:
+    """Why this run's prior receipt may not survive a contract repair turn.
+
+    It must be a well-formed receipt minted by this same run under the
+    current contract, and the repair turn must start on exactly the tree
+    the verified turn ended on. The trusted condition still judges the
+    candidate-to-head tail the repair adds."""
+    if prior is None:
+        return "no prior receipt"
+    receipt = prior[1]
+    try:
+        checks = (
+            receipt.get("schema") == 1,
+            receipt["issue_id"] == entry.issue.id,
+            receipt["identifier"] == entry.issue.identifier,
+            receipt["run_id"] == entry.run_id and bool(entry.run_id),
+            normalize_state(receipt["stage"])
+            == normalize_state(policy["verify_state"]),
+            receipt["verifier_kind"] == policy["verifier_kind"],
+            receipt["contract_sha256"] == fingerprint(policy),
+            receipt["artifact"] == policy["artifact"],
+            type(receipt["turn"]) is int and receipt["turn"] > 0,
+            hashlib.sha256(receipt["artifact_content"].encode()).hexdigest()
+            == receipt["artifact_sha256"],
+            json.loads(receipt["artifact_content"])["candidate_sha"]
+            == receipt["candidate_sha"],
+        )
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return "prior receipt malformed"
+    if not all(checks):
+        return "prior receipt not bound to this run and contract"
+    if receipt["completed_sha"] != head:
+        return "workspace changed since the verified turn completed"
+    return None
+
+
+def _read_receipt(path: Path) -> tuple[bytes, dict[str, Any]] | None:
+    try:
+        raw = path.read_bytes()
+        receipt = json.loads(raw)
+    except (OSError, ValueError):
+        return None
+    return (raw, receipt) if isinstance(receipt, dict) else None
+
+
 def begin(
     cfg: ServiceConfig, entry: RunningEntry, workspace: Path, stage: str
 ) -> str | None:
     policy = contract(cfg)
     if policy is None:
         return None
+    repair, entry.verify_contract_repair = entry.verify_contract_repair, False
+    entry.verify_receipt_carry = None
     if normalize_state(stage) != normalize_state(policy["verify_state"]):
         if entry.agent_kind == policy["verifier_kind"]:
             entry.verify_session_authored = True
         return None
     # Invalidate before touching worker input: failed/crashed Verify cannot
     # inherit approval from an earlier turn. No receipt is minted on error.
-    receipt_path(cfg, entry.issue).unlink(missing_ok=True)
+    # A contract repair turn holds the prior receipt in memory only, and
+    # `complete` restores it only after that turn completes successfully.
+    path = receipt_path(cfg, entry.issue)
+    prior = _read_receipt(path) if repair else None
+    if path.exists() or path.is_symlink():
+        path.unlink(missing_ok=True)
+        _event("verify_receipt_invalidated", entry, reason="verify turn started")
     if (
         entry.verify_session_authored
         or entry.recovery_session_resumed
@@ -141,6 +230,17 @@ def begin(
     if not sha or not entry.run_id:
         raise ValueError("Verify receipt requires a runtime run and Git candidate")
     entry.verify_turn_pending = True
+    if repair:
+        problem = _carry_problem(policy, entry, prior, sha)
+        if problem is None:
+            entry.verify_receipt_carry = prior
+        _event(
+            "verify_receipt_carry_offered" if problem is None
+            else "verify_receipt_carry_refused",
+            entry,
+            candidate_sha=sha,
+            reason=problem or "contract repair of this run's verified turn",
+        )
     return sha
 
 
@@ -151,6 +251,7 @@ def complete(
     candidate: str | None,
     turn: int,
 ) -> None:
+    carry, entry.verify_receipt_carry = entry.verify_receipt_carry, None
     if candidate is None:
         return
     policy = contract(cfg)
@@ -163,20 +264,39 @@ def complete(
     ) != normalize_state(policy["verify_state"]):
         raise ValueError("Verify provenance changed during turn")
     path = artifact_path(workspace, policy)
+    target = receipt_path(cfg, entry.issue)
     # Missing closure is ordinary failed evidence; the terminal predicate
     # reports it. Never turn a generic approval into an empty closure.
-    if not path.is_file() or path.is_symlink():
+    content = (
+        path.read_bytes() if path.is_file() and not path.is_symlink() else None
+    )
+    if carry is not None and carry[1]["turn"] < turn and (
+        content is None or content == carry[1]["artifact_content"].encode()
+    ):
+        # The repair turn left no new closure (or rewrote the verified one
+        # unchanged): the verified turn's receipt stands, byte for byte.
+        _write(target, carry[0])
+        _event(
+            "verify_receipt_carried",
+            entry,
+            turn=turn,
+            receipt_turn=carry[1]["turn"],
+            candidate_sha=carry[1]["candidate_sha"],
+        )
         return
-    content = path.read_bytes()
-    if len(content) > 1_000_000:
+    problem = _closure_problem(content, candidate)
+    if problem is not None:
+        _event(
+            "verify_receipt_not_minted",
+            entry,
+            turn=turn,
+            candidate_sha=candidate,
+            reason=problem,
+            carry_dropped=carry is not None,
+        )
         return
-    try:
-        content_text = content.decode("utf-8")
-        closure = json.loads(content_text)
-    except (ValueError, UnicodeDecodeError):
-        return
-    if not isinstance(closure, dict) or closure.get("candidate_sha") != candidate:
-        return
+    assert content is not None
+    content_text = content.decode("utf-8")
     receipt = dict(
         schema=1,
         issue_id=entry.issue.id,
@@ -192,12 +312,30 @@ def complete(
         artifact_sha256=hashlib.sha256(content).hexdigest(),
         artifact_content=content_text,
     )
-    target = receipt_path(cfg, entry.issue)
+    _write(target, json.dumps(receipt).encode())
+    _event("verify_receipt_minted", entry, turn=turn, candidate_sha=candidate)
+
+
+def _closure_problem(content: bytes | None, candidate: str) -> str | None:
+    if content is None:
+        return "closure artifact missing"
+    if len(content) > 1_000_000:
+        return "closure artifact too large"
+    try:
+        closure = json.loads(content.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return "closure artifact is not JSON"
+    if not isinstance(closure, dict) or closure.get("candidate_sha") != candidate:
+        return "closure artifact does not bind the turn's candidate"
+    return None
+
+
+def _write(target: Path, data: bytes) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(dir=target.parent, prefix=".receipt-")
     try:
-        with os.fdopen(fd, "w") as handle:
-            json.dump(receipt, handle)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, target)
