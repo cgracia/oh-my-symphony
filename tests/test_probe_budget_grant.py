@@ -711,7 +711,7 @@ def test_G19d_SEAM_no_dispatch_while_a_grant_moves_the_card(tmp_path, monkeypatc
     assert _eligibility(orch, cfg) is None or (
         _eligibility(orch, cfg).code != "budget_grant_converging"
     )
-    orch._budget_grant_converging.add(issue_id)  # what a tick sees meanwhile
+    orch._budget_grant_converging[issue_id] = 1  # what a tick sees meanwhile
     assert _eligibility(orch, cfg).code == "budget_grant_converging"
 
 
@@ -738,3 +738,52 @@ def test_G19e_SEAM_replay_refuses_the_move_when_the_lease_is_unknown(
     monkeypatch.setattr(registry, "has_active_lease", _lease)
     _grant(orch)
     assert len(calls) == 2 and _fetch(orch, cfg).state == "Blocked"
+
+
+def test_G19f_SEAM_concurrent_replays_keep_the_fence_until_the_last_lands(
+    tmp_path, monkeypatch
+):
+    """Two replays of one unstarted grant: the first to finish must not drop
+    the dispatch fence while the other's lane write is still pending."""
+    orch, cfg, issue_id = _incident(tmp_path)
+    issue = _fetch(orch, cfg)
+    assert orch._run_registry.grant_budget(
+        grant_id="gh-t-grant-0001", issue_id=issue_id, identifier=ID,
+        actor=ACTOR, reason=REASON, extra_turns=3, lifetime_cap=10,
+        from_state=issue.state, target_state="Verify",
+    ).status == "granted"
+    fenced: list[bool] = []
+
+    async def _run() -> None:
+        entered: list[asyncio.Event] = []
+        gates = [asyncio.Event(), asyncio.Event()]
+
+        async def _converge(*_args):
+            index = len(entered)
+            entered.append(asyncio.Event())
+            await gates[index].wait()  # holds this replay's lane write open
+            return True, "converged", {}
+
+        monkeypatch.setattr(orch, "_converge_budget_grant", _converge)
+
+        def _replay():
+            return asyncio.create_task(
+                orch.grant_budget_for_issue(
+                    ID, grant_id="gh-t-grant-0001", actor=ACTOR, reason=REASON,
+                    extra_turns=3, target_state="Verify",
+                )
+            )
+
+        first, second = _replay(), _replay()
+        while len(entered) < 2:
+            await asyncio.sleep(0.01)
+        gates[0].set()
+        await first
+        fenced.append(issue_id in orch._budget_grant_converging)
+        assert _eligibility(orch, cfg).code == "budget_grant_converging"
+        gates[1].set()
+        await second
+
+    asyncio.run(_run())
+    assert fenced == [True]
+    assert issue_id not in orch._budget_grant_converging

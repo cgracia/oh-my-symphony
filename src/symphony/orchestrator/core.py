@@ -1078,9 +1078,10 @@ class Orchestrator:
         # ticket dispatches until it loads, so a granted ticket can never
         # fall back to ordinary turn accounting.
         self._budget_grants_unread = False
-        # Tickets a grant call is still moving into their lane: no dispatch
-        # until that move lands, so it cannot race a granted run.
-        self._budget_grant_converging: set[str] = set()
+        # Tickets a grant call is still moving into their lane, counted per
+        # call: no dispatch until every concurrent move lands, so none can
+        # race a granted run.
+        self._budget_grant_converging: dict[str, int] = {}
         # Tickets whose worker-exit handler is mid-flight. `_on_worker_exit`
         # adds the id on entry and clears it in a `finally`, so from the moment
         # a worker leaves `_running` until its terminal-state persist (or retry
@@ -5293,13 +5294,16 @@ class Orchestrator:
             )
         self._turn_budget_exhausted.discard(issue.id)
         self._budget_granted.add(issue.id)
-        self._budget_grant_converging.add(issue.id)
+        converging = self._budget_grant_converging
+        converging[issue.id] = converging.get(issue.id, 0) + 1
         try:
             return await self._converge_budget_grant(
                 cfg, issue, grant, result, cap, details
             )
         finally:
-            self._budget_grant_converging.discard(issue.id)
+            converging[issue.id] -= 1
+            if not converging[issue.id]:
+                del converging[issue.id]
 
     async def _converge_budget_grant(
         self,
