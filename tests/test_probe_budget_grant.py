@@ -321,6 +321,25 @@ def test_G6_SEAM_replay_is_idempotent_and_conflicts_are_refused(tmp_path):
     assert len(_ledger(orch, issue_id)) == 1
 
 
+@pytest.mark.parametrize(
+    "kw",
+    [
+        {"actor": "operator:ba5eba11ba5e"},
+        {"reason": "a different reason"},
+        {"target": "In Progress"},
+    ],
+    ids=["actor", "reason", "target"],
+)
+def test_G6b_SEAM_a_stored_grant_is_immutable(tmp_path, kw):
+    """Same id with any other field is a conflict, never a silent replay."""
+    orch, cfg, issue_id = _incident(tmp_path)
+    assert _grant(orch)[0]
+    changed, message, _ = _grant(orch, **kw)
+    assert not changed and "already used" in message
+    (grant,) = _ledger(orch, issue_id)
+    assert (grant.actor, grant.reason, grant.target_state) == (ACTOR, REASON, "Verify")
+
+
 def test_G7_SEAM_ticket_notes_are_mirrors_not_the_ledger(tmp_path):
     """Deleting the mirror widens nothing; a replay restores it."""
     orch, cfg, issue_id = _incident(tmp_path, budget_grant_max_turns=3)

@@ -2207,8 +2207,9 @@ class RunRegistry:
     ) -> BudgetGrantResult:
         """Record one grant and lift `budget_exhausted` in one transaction.
 
-        Replaying an existing `grant_id` with the same issue and turns returns
-        it unchanged (`replayed`) and never adds budget; any other reuse is a
+        Replaying an existing `grant_id` with the same issue, turns, actor,
+        reason and target returns it unchanged (`replayed`) and never adds
+        budget; a stored grant is immutable, so any other reuse is a
         `conflict`. A new grant needs the persisted flag still set (so two
         grants can never lift one hold) and the issue's lifetime granted turns
         to stay within `lifetime_cap`.
@@ -2225,6 +2226,9 @@ class RunRegistry:
                 same = (
                     existing["issue_id"] == issue_id
                     and int(existing["extra_turns"]) == extra_turns
+                    and existing["actor"] == actor
+                    and existing["reason"] == reason
+                    and existing["target_state"] == target_state
                 )
                 return BudgetGrantResult(
                     "replayed" if same else "conflict",
