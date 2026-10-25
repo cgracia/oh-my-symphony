@@ -21,7 +21,12 @@ from .diagnostics import (
     event_payload_json,
     redact_text,
 )
-from .migrations import LATEST_SCHEMA_VERSION, apply_migrations, current_schema_version
+from .migrations import (
+    LATEST_SCHEMA_VERSION,
+    apply_migrations,
+    current_schema_version,
+    ensure_budget_grants_table,
+)
 
 
 DEFAULT_LEASE_TTL = timedelta(minutes=5)
@@ -2357,6 +2362,7 @@ class RunRegistry:
         there is exactly one place that decides what the schema looks like.
         """
         self._applied_migrations = apply_migrations(self._connect(), self._path)
+        ensure_budget_grants_table(self._connect())
 
     def _write_issue_flags(
         self,

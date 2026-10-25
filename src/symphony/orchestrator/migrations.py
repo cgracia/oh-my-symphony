@@ -40,7 +40,6 @@ RELEASE_PROVENANCE_VERSION = 5
 RELEASE_CYCLE_AUTHORITY_VERSION = 6
 RUN_EXPLORER_VERSION = 7
 DURABLE_CONTINUATION_VERSION = 8
-BUDGET_GRANT_VERSION = 9
 
 
 @dataclass(frozen=True)
@@ -579,11 +578,16 @@ def _migrate_008_durable_continuation(conn: sqlite3.Connection) -> None:
     )
 
 
-def _migrate_009_budget_grants(conn: sqlite3.Connection) -> None:
+def ensure_budget_grants_table(conn: sqlite3.Connection) -> None:
     """Append-only ledger of operator budget grants for exhausted tickets.
 
     `grant_id` is the caller's idempotency key. Rows are never deleted;
     `turns_used` only grows and is charged before each granted turn starts.
+
+    Deliberately idempotent and outside `MIGRATIONS`: upstream already uses
+    schema version 9, so a locally carried numbered migration would make a
+    later upstream upgrade skip upstream's own version 9. An upstream
+    contribution should register this as the next numbered migration.
     """
     conn.execute(
         """
@@ -641,7 +645,6 @@ MIGRATIONS: tuple[Migration, ...] = (
         "durable_crash_continuation",
         _migrate_008_durable_continuation,
     ),
-    Migration(BUDGET_GRANT_VERSION, "budget_grants", _migrate_009_budget_grants),
 )
 
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
