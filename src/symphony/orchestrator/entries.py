@@ -39,6 +39,10 @@ class RunningEntry:
     # Prevent a pinned verifier backend from attesting its own author session.
     verify_session_authored: bool = False
     verify_turn_pending: bool = False
+    # A stage contract rewound this run's completed Verify into Verify; the
+    # next Verify turn may carry the run's receipt (`verify_receipts`).
+    verify_contract_repair: bool = False
+    verify_receipt_carry: "tuple[bytes, dict[str, Any]] | None" = None
     run_id: str = ""
     # A recovered attempt always owns a new run id. The predecessor link is
     # public history; the private checkpoint is consumed only by the backend
