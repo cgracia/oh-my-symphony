@@ -2696,15 +2696,17 @@ class Orchestrator:
     def _mark_budget_exhausted(self, issue_id: str, lane: str | None = None) -> None:
         self._turn_budget_exhausted.add(issue_id)
         self._persisted_retry_attempts.pop(issue_id, None)
-        self._set_issue_flags(issue_id, budget_exhausted=True, retry_attempt=None)
         registry = self._run_registry
         if lane and registry is not None:
-            # Bounds where an operator grant may resume (never past Verify).
+            # The flag and the lane that bounds where an operator grant may
+            # resume (never past Verify) persist together or not at all.
             self._registry_guard(
                 "record_budget_hold",
                 lambda: registry.record_budget_hold(issue_id, lane),
                 None,
             )
+            return
+        self._set_issue_flags(issue_id, budget_exhausted=True, retry_attempt=None)
 
     def _has_active_run_lease(self, issue_id: str) -> bool:
         if self._run_registry is None:

@@ -755,12 +755,12 @@ def test_G19f_SEAM_concurrent_replays_keep_the_fence_until_the_last_lands(
     fenced: list[bool] = []
 
     async def _run() -> None:
-        entered: list[asyncio.Event] = []
+        entered: list[asyncio.Task] = []  # replays, in the order they converge
         gates = [asyncio.Event(), asyncio.Event()]
 
         async def _converge(*_args):
             index = len(entered)
-            entered.append(asyncio.Event())
+            entered.append(asyncio.current_task())
             await gates[index].wait()  # holds this replay's lane write open
             return True, "converged", {}
 
@@ -775,15 +775,42 @@ def test_G19f_SEAM_concurrent_replays_keep_the_fence_until_the_last_lands(
             )
 
         first, second = _replay(), _replay()
-        while len(entered) < 2:
-            await asyncio.sleep(0.01)
-        gates[0].set()
-        await first
-        fenced.append(issue_id in orch._budget_grant_converging)
-        assert _eligibility(orch, cfg).code == "budget_grant_converging"
-        gates[1].set()
-        await second
+        try:
+            for _ in range(500):
+                if len(entered) == 2:
+                    break
+                await asyncio.sleep(0.01)
+            gates[0].set()
+            await asyncio.wait_for(entered[0], timeout=5)
+            fenced.append(issue_id in orch._budget_grant_converging)
+            decision = _eligibility(orch, cfg)
+            fenced.append(decision is not None and decision.code == "budget_grant_converging")
+        finally:
+            # Never leave a replay parked: the test must fail, not hang.
+            for gate in gates:
+                gate.set()
+            await asyncio.wait_for(
+                asyncio.gather(first, second, return_exceptions=True), timeout=5
+            )
 
     asyncio.run(_run())
-    assert fenced == [True]
+    assert fenced == [True, True]
     assert issue_id not in orch._budget_grant_converging
+
+
+def test_G18d_SEAM_a_failed_lane_write_never_leaves_a_stale_hold_lane(tmp_path):
+    """Held in Document, granted back into Verify, exhausted there while the
+    lane write fails: the next grant must not resume in Document."""
+    orch, cfg, issue_id = _incident(tmp_path, lane="Document")
+    assert _grant(orch, target="Verify")[0]
+    orch._run_registry._connect().execute(
+        "CREATE TRIGGER fail_hold BEFORE UPDATE ON budget_holds "
+        "BEGIN SELECT RAISE(ABORT, 'injected lane write failure'); END"
+    )
+    _exhaust_max_turns(tmp_path, orch, cfg)
+    assert _fetch(orch, cfg).state == "Blocked"
+    lane = orch._run_registry.budget_hold_lane(issue_id)
+    assert not (_flag(orch, issue_id) and lane == "Document")
+    assert issue_id in orch._turn_budget_exhausted  # still held in memory
+    changed, _message, _ = _grant(orch, grant_id="gh-t-grant-0002", target="Document")
+    assert not changed and _fetch(orch, cfg).state == "Blocked"

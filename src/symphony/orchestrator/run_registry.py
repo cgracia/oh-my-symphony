@@ -2321,15 +2321,29 @@ class RunRegistry:
     def record_budget_hold(
         self, issue_id: str, lane: str, *, now: datetime | None = None
     ) -> None:
-        """Remember the lane the ticket's latest budget hold stopped in."""
-        self._connect().execute(
-            """
-            INSERT INTO budget_holds (issue_id, lane, held_at) VALUES (?, ?, ?)
-            ON CONFLICT(issue_id) DO UPDATE SET
-                lane = excluded.lane, held_at = excluded.held_at
-            """,
-            (issue_id, lane, _iso(_utc(now))),
-        )
+        """Persist `budget_exhausted` and the lane it stopped in, atomically.
+
+        One transaction, so a failure or crash can never leave a new hold
+        beside an older hold's lane (which could let a grant skip Verify).
+        """
+        conn = self._connect()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            self.set_issue_flags(
+                issue_id, budget_exhausted=True, retry_attempt=None, now=now
+            )
+            conn.execute(
+                """
+                INSERT INTO budget_holds (issue_id, lane, held_at) VALUES (?, ?, ?)
+                ON CONFLICT(issue_id) DO UPDATE SET
+                    lane = excluded.lane, held_at = excluded.held_at
+                """,
+                (issue_id, lane, _iso(_utc(now))),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
 
     def budget_hold_lane(self, issue_id: str) -> str | None:
         row = self._connect().execute(
