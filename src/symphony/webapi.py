@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import asyncio
 import heapq
+import hashlib
 import hmac
 import ipaddress
 import json
@@ -311,6 +312,36 @@ def _configured_api_token() -> str | None:
     """Bearer token from `SYMPHONY_API_TOKEN`, or None when unset/blank."""
     token = os.environ.get(API_TOKEN_ENV, "").strip()
     return token or None
+
+
+OPERATOR_GRANT_DIGEST_ENV = "SYMPHONY_OPERATOR_GRANT_SHA256"
+OPERATOR_GRANT_HEADER = "X-Symphony-Operator-Grant"
+
+
+def _configured_operator_grant_digest() -> str | None:
+    """Hex SHA-256 of the operator grant secret, or None (grants disabled).
+
+    Only the digest is configured: agent workers inherit the service
+    environment, so the secret itself must never be placed there.
+    """
+    digest = os.environ.get(OPERATOR_GRANT_DIGEST_ENV, "").strip().lower()
+    return digest if re.fullmatch(r"[0-9a-f]{64}", digest) else None
+
+
+def _operator_grant_actor(request: web.Request) -> str | None:
+    """`operator:<digest prefix>` when the request carries the grant secret.
+
+    Separate from `SYMPHONY_API_TOKEN`: board API access, including the
+    bearer token, never authorizes a budget grant.
+    """
+    digest = _configured_operator_grant_digest()
+    secret = request.headers.get(OPERATOR_GRANT_HEADER, "")
+    if digest is None or not secret:
+        return None
+    presented = hashlib.sha256(secret.encode("utf-8")).hexdigest()
+    if not hmac.compare_digest(presented.encode("ascii"), digest.encode("ascii")):
+        return None
+    return f"operator:{digest[:12]}"
 
 
 def _request_has_valid_bearer(request: web.Request, token: str) -> bool:
@@ -1807,6 +1838,48 @@ def _register_issue_routes(
             }
         )
 
+    async def handle_issue_budget_grant(request: web.Request) -> web.Response:
+        identifier = _check_identifier(request.match_info["identifier"])
+        if _configured_operator_grant_digest() is None:
+            return _json_error(
+                403,
+                "operator_grants_disabled",
+                f"set {OPERATOR_GRANT_DIGEST_ENV} to enable budget grants",
+            )
+        actor = _operator_grant_actor(request)
+        if actor is None:
+            log.warning("budget_grant_unauthorized", identifier=identifier)
+            return _json_error(
+                403,
+                "operator_unauthorized",
+                f"budget grants need the operator secret in {OPERATOR_GRANT_HEADER}",
+            )
+        body = await _read_json(request)
+        grant_id = body.get("grant_id")
+        reason = body.get("reason")
+        extra_turns = body.get("extra_turns")
+        target_state = body.get("target_state")
+        if not isinstance(grant_id, str) or not isinstance(reason, str):
+            raise WorkflowMutationError("grant_id and reason must be strings")
+        if isinstance(extra_turns, bool) or not isinstance(extra_turns, int):
+            raise WorkflowMutationError("extra_turns must be an integer")
+        if target_state is not None and not isinstance(target_state, str):
+            raise WorkflowMutationError("target_state must be a string")
+        changed, message, details = await orchestrator.grant_budget_for_issue(
+            identifier,
+            grant_id=grant_id,
+            actor=actor,
+            reason=reason,
+            extra_turns=extra_turns,
+            target_state=target_state,
+        )
+        if not changed:
+            status = 404 if message.startswith("unknown issue") else 409
+            return _json_error(status, "budget_grant_rejected", message)
+        return web.json_response(
+            {"identifier": identifier, "granted": True, "message": message, **details}
+        )
+
     async def handle_issue_delete(request: web.Request) -> web.Response:
         identifier = _check_identifier(request.match_info["identifier"])
         tracker = ctx.file_tracker()
@@ -1863,6 +1936,10 @@ def _register_issue_routes(
     app.router.add_post(
         "/api/v1/issues/{identifier}/recover-blocked",
         _wrap(handle_issue_recover_blocked),
+    )
+    app.router.add_post(
+        "/api/v1/issues/{identifier}/budget-grant",
+        _wrap(handle_issue_budget_grant),
     )
     app.router.add_delete("/api/v1/issues/{identifier}", _wrap(handle_issue_delete))
     app.router.add_post(

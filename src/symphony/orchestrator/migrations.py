@@ -578,6 +578,53 @@ def _migrate_008_durable_continuation(conn: sqlite3.Connection) -> None:
     )
 
 
+def ensure_budget_grants_table(conn: sqlite3.Connection) -> None:
+    """Append-only ledger of operator budget grants for exhausted tickets.
+
+    `grant_id` is the caller's idempotency key. Rows are never deleted;
+    `turns_used` only grows and is charged before each granted turn starts.
+
+    Deliberately idempotent and outside `MIGRATIONS`: upstream already uses
+    schema version 9, so a locally carried numbered migration would make a
+    later upstream upgrade skip upstream's own version 9. An upstream
+    contribution should register this as the next numbered migration.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS budget_grants (
+            grant_id TEXT PRIMARY KEY,
+            issue_id TEXT NOT NULL,
+            identifier TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            extra_turns INTEGER NOT NULL CHECK (extra_turns > 0),
+            turns_used INTEGER NOT NULL DEFAULT 0
+                CHECK (turns_used >= 0 AND turns_used <= extra_turns),
+            from_state TEXT NOT NULL,
+            target_state TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_budget_grants_issue
+        ON budget_grants(issue_id, created_at)
+        """
+    )
+    # The active lane each ticket's latest budget hold stopped in. A grant
+    # may resume there or earlier, never past it (e.g. over a Verify).
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS budget_holds (
+            issue_id TEXT PRIMARY KEY,
+            lane TEXT NOT NULL,
+            held_at TEXT NOT NULL
+        )
+        """
+    )
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(1, "baseline_runs_and_issue_flags", _migrate_001_baseline),
     # The recorded name stays "governed_workflow_ledger" so existing

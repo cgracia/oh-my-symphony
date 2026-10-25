@@ -73,6 +73,7 @@ class _StubOrchestrator:
         self.run_history_error: str | None = None
         self.reset_ci_calls = 0
         self.recover_calls: list[dict[str, str | None]] = []
+        self.budget_grant_calls: list[dict[str, object]] = []
         self.skip_calls: list[str] = []
         self.schedule_payload: dict[str, Any] = {
             "schema_version": 1,
@@ -257,6 +258,14 @@ class _StubOrchestrator:
 
     def resume_worker(self, _issue_id: str) -> bool:
         return True
+
+    async def grant_budget_for_issue(
+        self, identifier: str, **kwargs: object
+    ) -> tuple[bool, str, dict[str, object]]:
+        self.budget_grant_calls.append({"identifier": identifier, **kwargs})
+        return True, f"{identifier} may run 3 granted turn(s)", {
+            "grant_id": kwargs["grant_id"], "status": "granted",
+        }
 
     async def recover_blocked_issue(
         self,
@@ -855,6 +864,117 @@ async def test_recover_blocked_route_calls_orchestrator(client: TestClient) -> N
             "agent_kind": "codex",
         }
     ]
+
+
+_GRANT_SECRET = "owner-held-grant-secret"
+_GRANT_BODY = {
+    "grant_id": "gh129-verify-1",
+    "reason": "PR green; run independent Verify",
+    "extra_turns": 3,
+    "target_state": "Verify",
+}
+
+
+def _enable_grants(monkeypatch: pytest.MonkeyPatch) -> str:
+    import hashlib
+
+    digest = hashlib.sha256(_GRANT_SECRET.encode()).hexdigest()
+    monkeypatch.setenv("SYMPHONY_OPERATOR_GRANT_SHA256", digest)
+    return digest
+
+
+async def test_budget_grant_disabled_without_configured_digest(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("SYMPHONY_OPERATOR_GRANT_SHA256", raising=False)
+    resp = await client.post(
+        "/api/v1/issues/SEED-1/budget-grant",
+        json=_GRANT_BODY,
+        headers={"X-Symphony-Operator-Grant": _GRANT_SECRET},
+    )
+    assert resp.status == 403
+    assert (await resp.json())["error"]["code"] == "operator_grants_disabled"
+    assert client.stub.budget_grant_calls == []  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {},
+        {"X-Symphony-Operator-Grant": "wrong"},
+        # The board API token (or the digest itself) is not the grant secret.
+        {"Authorization": f"Bearer {_GRANT_SECRET}"},
+        {"X-Symphony-Operator-Grant": "DIGEST"},
+    ],
+    ids=["missing", "wrong", "bearer-only", "digest-replay"],
+)
+async def test_budget_grant_refuses_unauthenticated_callers(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, headers: dict[str, str]
+) -> None:
+    digest = _enable_grants(monkeypatch)
+    headers = {k: (digest if v == "DIGEST" else v) for k, v in headers.items()}
+    resp = await client.post(
+        "/api/v1/issues/SEED-1/budget-grant", json=_GRANT_BODY, headers=headers
+    )
+    assert resp.status == 403
+    assert (await resp.json())["error"]["code"] == "operator_unauthorized"
+    assert client.stub.budget_grant_calls == []  # type: ignore[attr-defined]
+
+
+async def test_budget_grant_api_token_does_not_authorize_a_grant(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_grants(monkeypatch)
+    monkeypatch.setenv("SYMPHONY_API_TOKEN", "board-token")
+    auth = {"Authorization": "Bearer board-token"}
+    resp = await client.post(
+        "/api/v1/issues/SEED-1/budget-grant", json=_GRANT_BODY, headers=auth
+    )
+    assert resp.status == 403
+    ok = await client.post(
+        "/api/v1/issues/SEED-1/budget-grant",
+        json=_GRANT_BODY,
+        headers={**auth, "X-Symphony-Operator-Grant": _GRANT_SECRET},
+    )
+    assert ok.status == 200
+    assert len(client.stub.budget_grant_calls) == 1  # type: ignore[attr-defined]
+
+
+async def test_budget_grant_route_passes_operator_identity(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    digest = _enable_grants(monkeypatch)
+    resp = await client.post(
+        "/api/v1/issues/SEED-1/budget-grant",
+        json=_GRANT_BODY,
+        headers={"X-Symphony-Operator-Grant": _GRANT_SECRET},
+    )
+    assert resp.status == 200
+    assert (await resp.json())["granted"] is True
+    assert client.stub.budget_grant_calls == [  # type: ignore[attr-defined]
+        {
+            "identifier": "SEED-1",
+            "grant_id": "gh129-verify-1",
+            "actor": f"operator:{digest[:12]}",
+            "reason": "PR green; run independent Verify",
+            "extra_turns": 3,
+            "target_state": "Verify",
+        }
+    ]
+
+
+@pytest.mark.parametrize("extra_turns", [True, "3", 2.5, None])
+async def test_budget_grant_rejects_malformed_turns(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, extra_turns: object
+) -> None:
+    _enable_grants(monkeypatch)
+    resp = await client.post(
+        "/api/v1/issues/SEED-1/budget-grant",
+        json={**_GRANT_BODY, "extra_turns": extra_turns},
+        headers={"X-Symphony-Operator-Grant": _GRANT_SECRET},
+    )
+    assert resp.status == 400
+    assert client.stub.budget_grant_calls == []  # type: ignore[attr-defined]
 
 
 async def test_skip_document_route_and_legacy_skip_learn_alias(

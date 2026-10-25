@@ -366,6 +366,11 @@ def build_service_config(
             DEFAULT_MAX_REOPENS,
             name="agent.max_reopens",
         ),
+        budget_grant_max_turns=_validated_nonnegative_or_default(
+            agent_raw.get("budget_grant_max_turns"),
+            0,
+            name="agent.budget_grant_max_turns",
+        ),
         max_retries=_validated_nonnegative_or_default(
             agent_raw.get("max_retries"),
             DEFAULT_MAX_RETRIES,

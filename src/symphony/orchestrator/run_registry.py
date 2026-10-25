@@ -21,7 +21,12 @@ from .diagnostics import (
     event_payload_json,
     redact_text,
 )
-from .migrations import LATEST_SCHEMA_VERSION, apply_migrations, current_schema_version
+from .migrations import (
+    LATEST_SCHEMA_VERSION,
+    apply_migrations,
+    current_schema_version,
+    ensure_budget_grants_table,
+)
 
 
 DEFAULT_LEASE_TTL = timedelta(minutes=5)
@@ -112,6 +117,30 @@ class IssueFlags:
     paused: bool
     pause_reason: str | None
     updated_at: datetime
+
+
+@dataclass(frozen=True)
+class BudgetGrant:
+    grant_id: str
+    issue_id: str
+    identifier: str
+    actor: str
+    reason: str
+    extra_turns: int
+    turns_used: int
+    from_state: str
+    target_state: str
+    created_at: datetime
+
+
+@dataclass(frozen=True)
+class BudgetGrantResult:
+    """Outcome of `grant_budget`: `granted` and `replayed` carry the grant."""
+
+    status: str  # granted | replayed | conflict | not_held | cap
+    grant: BudgetGrant | None
+    granted_total: int
+    used_total: int
 
 
 @dataclass(frozen=True)
@@ -2162,6 +2191,175 @@ class RunRegistry:
             now=now,
         )
 
+    def grant_budget(
+        self,
+        *,
+        grant_id: str,
+        issue_id: str,
+        identifier: str,
+        actor: str,
+        reason: str,
+        extra_turns: int,
+        lifetime_cap: int,
+        from_state: str,
+        target_state: str,
+        now: datetime | None = None,
+    ) -> BudgetGrantResult:
+        """Record one grant and lift `budget_exhausted` in one transaction.
+
+        Replaying an existing `grant_id` with the same issue, turns, actor,
+        reason and target returns it unchanged (`replayed`) and never adds
+        budget; a stored grant is immutable, so any other reuse is a
+        `conflict`. A new grant needs the persisted flag still set (so two
+        grants can never lift one hold) and the issue's lifetime granted turns
+        to stay within `lifetime_cap`.
+        """
+        conn = self._connect()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            existing = conn.execute(
+                "SELECT * FROM budget_grants WHERE grant_id = ?", (grant_id,)
+            ).fetchone()
+            granted, used = self._budget_grant_totals_locked(issue_id)
+            if existing is not None:
+                conn.execute("COMMIT")
+                same = (
+                    existing["issue_id"] == issue_id
+                    and int(existing["extra_turns"]) == extra_turns
+                    and existing["actor"] == actor
+                    and existing["reason"] == reason
+                    and existing["target_state"] == target_state
+                )
+                return BudgetGrantResult(
+                    "replayed" if same else "conflict",
+                    _budget_grant(existing) if same else None,
+                    granted,
+                    used,
+                )
+            flags = self.get_issue_flags(issue_id)
+            if flags is None or not flags.budget_exhausted:
+                conn.execute("COMMIT")
+                return BudgetGrantResult("not_held", None, granted, used)
+            if granted + extra_turns > lifetime_cap:
+                conn.execute("COMMIT")
+                return BudgetGrantResult("cap", None, granted, used)
+            created = _iso(_utc(now))
+            conn.execute(
+                """
+                INSERT INTO budget_grants (
+                    grant_id, issue_id, identifier, actor, reason, extra_turns,
+                    turns_used, from_state, target_state, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
+                """,
+                (
+                    grant_id, issue_id, identifier, actor, reason, extra_turns,
+                    from_state, target_state, created,
+                ),
+            )
+            self._write_issue_flags(
+                issue_id,
+                retry_attempt=flags.retry_attempt,
+                budget_exhausted=False,
+                paused=flags.paused,
+                pause_reason=flags.pause_reason,
+                now=now,
+            )
+            row = conn.execute(
+                "SELECT * FROM budget_grants WHERE grant_id = ?", (grant_id,)
+            ).fetchone()
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        return BudgetGrantResult(
+            "granted", _budget_grant(row), granted + extra_turns, used
+        )
+
+    def consume_budget_grant_turn(self, issue_id: str) -> bool:
+        """Charge one granted turn before it starts; False when none remain."""
+        conn = self._connect()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = conn.execute(
+                """
+                SELECT grant_id FROM budget_grants
+                WHERE issue_id = ? AND turns_used < extra_turns
+                ORDER BY created_at, rowid LIMIT 1
+                """,
+                (issue_id,),
+            ).fetchone()
+            if row is not None:
+                conn.execute(
+                    "UPDATE budget_grants SET turns_used = turns_used + 1 "
+                    "WHERE grant_id = ?",
+                    (row["grant_id"],),
+                )
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        return row is not None
+
+    def budget_grant_totals(self, issue_id: str) -> tuple[int, int]:
+        """(granted, used) turns across every grant recorded for the issue."""
+        return self._budget_grant_totals_locked(issue_id)
+
+    def list_budget_grants(self, issue_id: str) -> list[BudgetGrant]:
+        rows = self._connect().execute(
+            "SELECT * FROM budget_grants WHERE issue_id = ? "
+            "ORDER BY created_at, rowid",
+            (issue_id,),
+        ).fetchall()
+        return [_budget_grant(row) for row in rows]
+
+    def budget_grant_issue_ids(self) -> set[str]:
+        rows = self._connect().execute(
+            "SELECT DISTINCT issue_id FROM budget_grants"
+        ).fetchall()
+        return {str(row["issue_id"]) for row in rows}
+
+    def record_budget_hold(
+        self, issue_id: str, lane: str, *, now: datetime | None = None
+    ) -> None:
+        """Persist `budget_exhausted` and the lane it stopped in, atomically.
+
+        One transaction, so a failure or crash can never leave a new hold
+        beside an older hold's lane (which could let a grant skip Verify).
+        """
+        conn = self._connect()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            self.set_issue_flags(
+                issue_id, budget_exhausted=True, retry_attempt=None, now=now
+            )
+            conn.execute(
+                """
+                INSERT INTO budget_holds (issue_id, lane, held_at) VALUES (?, ?, ?)
+                ON CONFLICT(issue_id) DO UPDATE SET
+                    lane = excluded.lane, held_at = excluded.held_at
+                """,
+                (issue_id, lane, _iso(_utc(now))),
+            )
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+
+    def budget_hold_lane(self, issue_id: str) -> str | None:
+        row = self._connect().execute(
+            "SELECT lane FROM budget_holds WHERE issue_id = ?", (issue_id,)
+        ).fetchone()
+        return str(row["lane"]) if row is not None else None
+
+    def _budget_grant_totals_locked(self, issue_id: str) -> tuple[int, int]:
+        row = self._connect().execute(
+            "SELECT COALESCE(SUM(extra_turns), 0) AS granted, "
+            "COALESCE(SUM(turns_used), 0) AS used "
+            "FROM budget_grants WHERE issue_id = ?",
+            (issue_id,),
+        ).fetchone()
+        return int(row["granted"]), int(row["used"])
+
     def clear_issue_flags(
         self,
         issue_id: str,
@@ -2201,6 +2399,7 @@ class RunRegistry:
         there is exactly one place that decides what the schema looks like.
         """
         self._applied_migrations = apply_migrations(self._connect(), self._path)
+        ensure_budget_grants_table(self._connect())
 
     def _write_issue_flags(
         self,
@@ -2497,6 +2696,21 @@ def _record(row: sqlite3.Row) -> RunRecord:
             else None
         ),
         checkpointed_at=_parse(row["checkpointed_at"]),
+    )
+
+
+def _budget_grant(row: sqlite3.Row) -> BudgetGrant:
+    return BudgetGrant(
+        grant_id=str(row["grant_id"]),
+        issue_id=str(row["issue_id"]),
+        identifier=str(row["identifier"]),
+        actor=str(row["actor"]),
+        reason=str(row["reason"]),
+        extra_turns=int(row["extra_turns"]),
+        turns_used=int(row["turns_used"]),
+        from_state=str(row["from_state"]),
+        target_state=str(row["target_state"]),
+        created_at=_parse(row["created_at"]) or datetime.now(timezone.utc),
     )
 
 

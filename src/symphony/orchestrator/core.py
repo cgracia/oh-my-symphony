@@ -771,6 +771,10 @@ def _blocked_rca_labels(issue: Issue) -> list[str]:
 
 _BOARD_HEALTH_LANES = frozenset({"document", "learn"})
 _REOPEN_APPROVED_RE = re.compile(r"^##\s+Reopen Approved\b", re.MULTILINE)
+_BUDGET_EXCEEDED_RE = re.compile(
+    r"^##\s+Budget Exceeded\s*$\n(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL
+)
+_BUDGET_GRANT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{7,63}$")
 
 
 def _has_app_release_label(issue: Issue) -> bool:
@@ -1067,6 +1071,17 @@ class Orchestrator:
         # write. Bounds the extra description fetch to one per ticket per
         # process instead of one per sweep.
         self._history_recovery_attempted: set[str] = set()
+        # Issues with operator budget grants in the registry ledger: their
+        # turns are charged to the ledger instead of `max_total_turns`.
+        self._budget_granted: set[str] = set()
+        # True while that set could not be read from an open registry: no
+        # ticket dispatches until it loads, so a granted ticket can never
+        # fall back to ordinary turn accounting.
+        self._budget_grants_unread = False
+        # Tickets a grant call is still moving into their lane, counted per
+        # call: no dispatch until every concurrent move lands, so none can
+        # race a granted run.
+        self._budget_grant_converging: dict[str, int] = {}
         # Tickets whose worker-exit handler is mid-flight. `_on_worker_exit`
         # adds the id on entry and clears it in a `finally`, so from the moment
         # a worker leaves `_running` until its terminal-state persist (or retry
@@ -1404,6 +1419,17 @@ class Orchestrator:
             log.info("run_leases_expired_on_start", count=expired, path=str(path))
         flags = self._registry_guard("list_issue_flags", registry.list_issue_flags, [])
         self._rehydrate_issue_flags(flags, cfg=cfg, registry=registry)
+        self._load_budget_grants(registry)
+
+    def _load_budget_grants(self, registry: RunRegistry) -> bool:
+        """Load which tickets spend ledger turns; False while unreadable."""
+        ids = self._registry_guard(
+            "budget_grant_issue_ids", registry.budget_grant_issue_ids, None
+        )
+        self._budget_grants_unread = ids is None
+        if ids is not None:
+            self._budget_granted = set(ids)
+        return ids is not None
 
     def _ensure_run_registry(self, cfg: ServiceConfig) -> None:
         """Open the registry and reclaim dead-owner leases (blocking form).
@@ -2667,9 +2693,19 @@ class Orchestrator:
             None,
         )
 
-    def _mark_budget_exhausted(self, issue_id: str) -> None:
+    def _mark_budget_exhausted(self, issue_id: str, lane: str | None = None) -> None:
         self._turn_budget_exhausted.add(issue_id)
         self._persisted_retry_attempts.pop(issue_id, None)
+        registry = self._run_registry
+        if lane and registry is not None:
+            # The flag and the lane that bounds where an operator grant may
+            # resume (never past Verify) persist together or not at all.
+            self._registry_guard(
+                "record_budget_hold",
+                lambda: registry.record_budget_hold(issue_id, lane),
+                None,
+            )
+            return
         self._set_issue_flags(issue_id, budget_exhausted=True, retry_attempt=None)
 
     def _has_active_run_lease(self, issue_id: str) -> bool:
@@ -3159,6 +3195,9 @@ class Orchestrator:
         self._pause_reasons.clear()
         self._pause_events.clear()
         self._turn_budget_exhausted.clear()
+        self._budget_granted.clear()
+        self._budget_grants_unread = False
+        self._budget_grant_converging.clear()
         self._lease_blocked.clear()
         self._blocked_rca_source_ids.clear()
         self._history_recovery_attempted.clear()
@@ -3453,6 +3492,17 @@ class Orchestrator:
         reopen_limit = cfg.agent.max_reopens
         if reopen_limit > 0:
             reopen_limit += len(_REOPEN_APPROVED_RE.findall(issue.description or ""))
+        grant_items: list[dict[str, Any]] = []
+        if registry is not None and issue.id in self._budget_granted:
+            totals = self._registry_guard(
+                "budget_grant_totals",
+                lambda: registry.budget_grant_totals(issue.id),
+                None,
+            )
+            granted, used = totals if totals is not None else (
+                cfg.agent.budget_grant_max_turns, None
+            )
+            grant_items.append(item("grant_turns", granted, used))
         return {
             "available": True,
             "generated_at": generated_at,
@@ -3464,6 +3514,7 @@ class Orchestrator:
                 item("retries", cfg.agent.max_retries, retry_used),
                 item("rewinds", cfg.agent.max_attempts, rewinds),
                 item("reopens", reopen_limit, reopen_used),
+                *grant_items,
             ],
         }
 
@@ -5120,6 +5171,320 @@ class Orchestrator:
             manual=True,
         )
 
+    async def grant_budget_for_issue(
+        self,
+        identifier: str,
+        *,
+        grant_id: str,
+        actor: str,
+        reason: str,
+        extra_turns: int,
+        target_state: str | None = None,
+    ) -> tuple[bool, str, dict[str, Any]]:
+        """Operator-only: grant a budget-exhausted ticket `extra_turns` turns.
+
+        The caller (the authenticated web route) has already established that
+        `actor` is the operator. The registry ledger is the only authority:
+        one transaction records the grant under the caller's `grant_id` and
+        lifts the persisted `budget_exhausted` flag, so a crash leaves either
+        both or neither. Replaying a `grant_id` converges the ticket mirror
+        and lane move without adding budget. Every granted turn is charged to
+        the ledger before it starts; the lifetime total per ticket is capped
+        by `agent.budget_grant_max_turns`. Routing, pins and stage gates are
+        unchanged, so the configured verifier still owns Verify.
+        """
+        reason = " ".join((reason or "").split())[:500]
+        if not actor:
+            return False, "operator identity required", {}
+        if not _BUDGET_GRANT_ID_RE.match(grant_id or ""):
+            return False, "grant_id must be 8-64 of [A-Za-z0-9._-]", {}
+        if not reason:
+            return False, "a grant reason is required", {}
+        cfg = self._workflow_state.current()
+        if cfg is None:
+            return False, "workflow config unavailable", {}
+        cap = cfg.agent.budget_grant_max_turns
+        if cap <= 0:
+            return False, "budget grants are disabled (agent.budget_grant_max_turns: 0)", {}
+        if (
+            isinstance(extra_turns, bool)
+            or not isinstance(extra_turns, int)
+            or not 1 <= extra_turns <= min(cap, cfg.agent.max_turns)
+        ):
+            return (
+                False,
+                f"extra_turns must be 1..{min(cap, cfg.agent.max_turns)} "
+                "(agent.budget_grant_max_turns and agent.max_turns)",
+                {},
+            )
+        registry = self._run_registry
+        if registry is None:
+            return False, "run registry unavailable; grant refused", {}
+        issue = await asyncio.to_thread(
+            self._tracker_call_fetch_issue_full_by_id, cfg, identifier
+        )
+        if issue is None:
+            return False, f"unknown issue {identifier}", {}
+        if self.find_running_issue_id(identifier) is not None or (
+            self._has_active_run_lease(issue.id)
+        ):
+            return False, f"{identifier} has a running worker", {}
+        active = {normalize_state(state): state for state in cfg.tracker.active_states}
+        target = active.get(normalize_state(target_state or issue.state))
+        if target is None:
+            return (
+                False,
+                f"name the active lane {identifier} resumes in "
+                f"(state={issue.state}, target_state={target_state})",
+                {},
+            )
+        skipped = self._budget_grant_skipped_verify(cfg, issue, target)
+        if skipped is not None:
+            return (
+                False,
+                f"a grant may not skip {skipped}: {identifier} was held before "
+                f"it, so resume in {skipped} or an earlier lane",
+                {},
+            )
+        try:
+            result = registry.grant_budget(
+                grant_id=grant_id,
+                issue_id=issue.id,
+                identifier=issue.identifier,
+                actor=actor,
+                reason=reason,
+                extra_turns=extra_turns,
+                lifetime_cap=cap,
+                from_state=issue.state,
+                target_state=target,
+            )
+        except Exception as exc:
+            self._registry_error_count += 1
+            self._last_registry_error = f"grant_budget: {exc}"
+            log.error("budget_grant_failed", identifier=identifier, error=str(exc))
+            return False, f"grant not recorded: {exc}", {}
+        details: dict[str, Any] = {
+            "grant_id": grant_id,
+            "granted_total": result.granted_total,
+            "used_total": result.used_total,
+            "lifetime_cap": cap,
+        }
+        if result.status == "conflict":
+            return False, f"grant_id {grant_id} was already used for a different grant", details
+        if result.status == "not_held":
+            return False, f"{identifier} is not held by budget_exhausted", details
+        if result.status == "cap":
+            self._record_stats_gate(issue.identifier, issue.state, "budget_grant_cap")
+            return (
+                False,
+                f"{identifier} would exceed agent.budget_grant_max_turns ({cap}; "
+                f"already granted {result.granted_total})",
+                details,
+            )
+        grant = result.grant
+        assert grant is not None
+        details["status"] = result.status
+        if result.status == "replayed" and grant.turns_used > 0:
+            # The grant already took effect; a late replay must not undo a
+            # later hold or drag the ticket back into the lifecycle.
+            details["used_total"] = result.used_total
+            return (
+                True,
+                f"grant {grant_id} already in use ({grant.turns_used} of "
+                f"{grant.extra_turns} turn(s) spent); nothing to converge",
+                details,
+            )
+        self._turn_budget_exhausted.discard(issue.id)
+        self._budget_granted.add(issue.id)
+        converging = self._budget_grant_converging
+        converging[issue.id] = converging.get(issue.id, 0) + 1
+        try:
+            return await self._converge_budget_grant(
+                cfg, issue, grant, result, cap, details
+            )
+        finally:
+            converging[issue.id] -= 1
+            if not converging[issue.id]:
+                del converging[issue.id]
+
+    async def _converge_budget_grant(
+        self,
+        cfg: ServiceConfig,
+        issue: Issue,
+        grant: Any,
+        result: Any,
+        cap: int,
+        details: dict[str, Any],
+    ) -> tuple[bool, str, dict[str, Any]]:
+        """Mirror and move a committed grant; dispatch waits until it returns."""
+        identifier, grant_id = issue.identifier, grant.grant_id
+        debug = self._issue_debug.setdefault(issue.id, _IssueDebug())
+        if result.status == "granted":
+            debug.last_error = None
+            self._record_stats_gate(issue.identifier, grant.target_state, "budget_grant")
+            log.warning(
+                "budget_grant_recorded",
+                identifier=identifier,
+                grant_id=grant_id,
+                actor=grant.actor,
+                extra_turns=grant.extra_turns,
+                granted_total=result.granted_total,
+                lifetime_cap=cap,
+                reason=grant.reason,
+            )
+        details["mirror"] = await self._mirror_budget_grant(cfg, issue, grant, result, cap)
+        fresh = await asyncio.to_thread(
+            self._tracker_call_fetch_issue_full_by_id, cfg, identifier
+        )
+        current = fresh or issue
+        if normalize_state(
+            current.state
+        ) == normalize_state(grant.from_state) and self._budget_grant_unstarted(
+            issue.id, grant_id
+        ):
+            # Only a card still parked where the grant found it moves, and
+            # only while no granted turn has started; re-checked here, after
+            # the awaits above, so a replay never drags a later hold back.
+            try:
+                await asyncio.to_thread(
+                    self._tracker_call_update_state, cfg, current, grant.target_state
+                )
+            except Exception as exc:
+                self._record_tracker_error(issue.id, exc)
+                return (
+                    False,
+                    f"grant {grant_id} recorded, but moving {identifier} to "
+                    f"{grant.target_state} failed: {exc}; replay the same "
+                    "grant_id to retry",
+                    details,
+                )
+        self._clear_tracker_error(issue.id)
+        self.request_refresh()
+        details["state"] = grant.target_state
+        return True, f"{identifier} may run {grant.extra_turns} granted turn(s)", details
+
+    async def _mirror_budget_grant(
+        self,
+        cfg: ServiceConfig,
+        issue: Issue,
+        grant: Any,
+        result: Any,
+        cap: int,
+    ) -> str:
+        """Best-effort, human-readable copy of a ledger grant on the ticket.
+
+        The registry row is the authority; editing or deleting this note
+        changes nothing. Keyed by grant id, so a replay re-adds a lost copy.
+        """
+        if grant.grant_id in (issue.description or ""):
+            return "present"
+        held = _BUDGET_EXCEEDED_RE.findall(issue.description or "")
+        hold = held[-1].strip() if held else "budget_exhausted"
+        note = (
+            f"Grant `{grant.grant_id}` by `{grant.actor}`: {grant.extra_turns} "
+            f"extra turn(s) from {grant.from_state} into {grant.target_state} "
+            f"(ticket total granted {result.granted_total} of lifetime cap {cap}). "
+            f"Reason: {grant.reason}\n\nLifted hold: {hold}\n\nMirror of the "
+            "run-registry ledger, which is authoritative. Each turn is charged "
+            "there before it starts. This is not a Verify receipt; stage routing "
+            "and gates are unchanged."
+        )
+        try:
+            await asyncio.to_thread(
+                self._tracker_call_append_note, cfg, issue, "Budget Grant", note
+            )
+        except Exception as exc:
+            log.warning(
+                "budget_grant_mirror_failed",
+                identifier=issue.identifier,
+                grant_id=grant.grant_id,
+                error=str(exc),
+            )
+            return "failed"
+        return "written"
+
+    def _budget_grant_skipped_verify(
+        self, cfg: ServiceConfig, issue: Issue, target: str
+    ) -> str | None:
+        """The Verify lane a grant into `target` would skip, if any.
+
+        The hold lane is the registry's record, or the card's own lane when
+        that is earlier (board edits never move it forward). Without a usable
+        record, including a read error or a hold older than the record, it is
+        the first active lane. A lane is skipped when it lies at or after the
+        hold lane and before the target, so a ticket held in Verify (or
+        earlier) never resumes past it.
+        """
+        order = [normalize_state(state) for state in cfg.tracker.active_states]
+        registry = self._run_registry
+        recorded = normalize_state(
+            self._registry_guard(
+                "budget_hold_lane", lambda: registry.budget_hold_lane(issue.id), None
+            )
+            or ""
+            if registry is not None
+            else ""
+        )
+        start = 0
+        if recorded in order:
+            start = order.index(recorded)
+            if normalize_state(issue.state) in order:
+                start = min(start, order.index(normalize_state(issue.state)))
+        end = order.index(normalize_state(target))
+        for state in cfg.tracker.active_states[start:end]:
+            if normalize_state(state) == "verify":
+                return state
+        return None
+
+    def _budget_grant_unstarted(self, issue_id: str, grant_id: str) -> bool:
+        """True only when the ledger shows `grant_id` unspent and idle."""
+        registry = self._run_registry
+        if registry is None or issue_id in self._running:
+            return False
+        if self._registry_guard(
+            "has_active_lease", lambda: registry.has_active_lease(issue_id), True
+        ):
+            return False
+        held = self._registry_guard(
+            "get_issue_flags",
+            lambda: bool(
+                (flags := registry.get_issue_flags(issue_id)) and flags.budget_exhausted
+            ),
+            True,
+        )
+        grants = self._registry_guard(
+            "list_budget_grants", lambda: registry.list_budget_grants(issue_id), []
+        )
+        return not held and any(
+            g.grant_id == grant_id and g.turns_used == 0 for g in grants
+        )
+
+    def _budget_grant_active(self, issue_id: str) -> bool:
+        return issue_id in self._budget_granted
+
+    def _charge_budget_grant_turn(self, issue_id: str) -> bool:
+        """Reserve one granted turn in the ledger; any registry doubt stops."""
+        registry = self._run_registry
+        if registry is None:
+            return False
+        return bool(
+            self._registry_guard(
+                "consume_budget_grant_turn",
+                lambda: registry.consume_budget_grant_turn(issue_id),
+                False,
+            )
+        )
+
+    def _budget_grant_spent(self, issue_id: str) -> bool:
+        """True when no granted turn remains or the ledger is unreadable."""
+        registry = self._run_registry
+        if registry is None:
+            return True
+        totals = self._registry_guard(
+            "budget_grant_totals", lambda: registry.budget_grant_totals(issue_id), None
+        )
+        return totals is None or totals[1] >= totals[0]
+
     async def _recover_blocked_history_gate(
         self, cfg: ServiceConfig, issue: Issue
     ) -> bool:
@@ -5920,6 +6285,21 @@ class Orchestrator:
                 _EligibilityDisposition.REJECT,
                 "budget_exhausted",
                 "turn budget exhausted",
+            )
+        if issue.id in self._budget_grant_converging:
+            return _EligibilityDecision(
+                _EligibilityDisposition.REJECT,
+                "budget_grant_converging",
+                "operator budget grant is moving the ticket",
+            )
+        if self._budget_grants_unread and not (
+            self._run_registry is not None
+            and self._load_budget_grants(self._run_registry)
+        ):
+            return _EligibilityDecision(
+                _EligibilityDisposition.REJECT,
+                "budget_grants_unread",
+                "operator budget grant ledger unreadable; retrying",
             )
         if issue.id in self._terminal_persist_pending:
             return _EligibilityDecision(
@@ -7705,6 +8085,22 @@ class Orchestrator:
                 else self._max_state_turns_for_state(cfg, state_name)
             )
             budget_detail = f"(state_turns={count}, effective_max_state_turns={limit})"
+        elif budget_kind == "budget_grant":
+            registry = self._run_registry
+            totals = (
+                self._registry_guard(
+                    "budget_grant_totals",
+                    lambda: registry.budget_grant_totals(issue_id),
+                    None,
+                )
+                if registry is not None
+                else None
+            )
+            budget_detail = (
+                f"(granted turns used {totals[1]}/{totals[0]})"
+                if totals is not None
+                else "(granted turns: ledger unreadable)"
+            )
         else:
             budget_detail = f"(max_total_turns={cfg.agent.max_total_turns})"
         note_body = (
