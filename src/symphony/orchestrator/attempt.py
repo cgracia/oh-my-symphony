@@ -551,7 +551,18 @@ async def _run_turn_loop(orch: Orchestrator, st: _AttemptState) -> _AttemptExit 
 
         st.current_state = normalize_state(st.issue.state)
         st.debug = orch._issue_debug.setdefault(st.running_issue_id, _IssueDebug())
-        if (
+        if orch._budget_grant_active(st.running_issue_id):
+            # A granted ticket already spent `max_total_turns`; the ledger is
+            # its only budget and the turn is charged before it starts.
+            if not orch._charge_budget_grant_turn(st.running_issue_id):
+                log.warning(
+                    "budget_grant_turn_boundary",
+                    issue_id=st.running_issue_id,
+                    issue_identifier=st.issue.identifier,
+                    next_turn=st.turn_number,
+                )
+                break
+        elif (
             st.cfg.agent.max_total_turns > 0
             and st.debug.completed_turn_count + st.turn_number
             > st.cfg.agent.max_total_turns

@@ -40,6 +40,7 @@ RELEASE_PROVENANCE_VERSION = 5
 RELEASE_CYCLE_AUTHORITY_VERSION = 6
 RUN_EXPLORER_VERSION = 7
 DURABLE_CONTINUATION_VERSION = 8
+BUDGET_GRANT_VERSION = 9
 
 
 @dataclass(frozen=True)
@@ -578,6 +579,37 @@ def _migrate_008_durable_continuation(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migrate_009_budget_grants(conn: sqlite3.Connection) -> None:
+    """Append-only ledger of operator budget grants for exhausted tickets.
+
+    `grant_id` is the caller's idempotency key. Rows are never deleted;
+    `turns_used` only grows and is charged before each granted turn starts.
+    """
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS budget_grants (
+            grant_id TEXT PRIMARY KEY,
+            issue_id TEXT NOT NULL,
+            identifier TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            extra_turns INTEGER NOT NULL CHECK (extra_turns > 0),
+            turns_used INTEGER NOT NULL DEFAULT 0
+                CHECK (turns_used >= 0 AND turns_used <= extra_turns),
+            from_state TEXT NOT NULL,
+            target_state TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_budget_grants_issue
+        ON budget_grants(issue_id, created_at)
+        """
+    )
+
+
 MIGRATIONS: tuple[Migration, ...] = (
     Migration(1, "baseline_runs_and_issue_flags", _migrate_001_baseline),
     # The recorded name stays "governed_workflow_ledger" so existing
@@ -609,6 +641,7 @@ MIGRATIONS: tuple[Migration, ...] = (
         "durable_crash_continuation",
         _migrate_008_durable_continuation,
     ),
+    Migration(BUDGET_GRANT_VERSION, "budget_grants", _migrate_009_budget_grants),
 )
 
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version

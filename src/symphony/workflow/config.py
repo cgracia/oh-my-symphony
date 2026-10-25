@@ -124,6 +124,11 @@ class AgentConfig:
     # a `## Reopen Approved` section on the ticket extends the budget by
     # one. 0 disables.
     max_reopens: int = DEFAULT_MAX_REOPENS
+    # Lifetime cap on extra turns an operator may grant one budget-exhausted
+    # ticket through the authenticated budget-grant endpoint. Grants are
+    # recorded in the run registry and each turn is charged there before it
+    # starts, so the cap survives restarts. 0 (default) disables grants.
+    budget_grant_max_turns: int = 0
     # Cap on auto-retries scheduled after a worker exits with a non-normal
     # outcome (timeout, crash, transient backend error). On exhaustion the
     # orchestrator stops scheduling further retries, appends an

@@ -354,6 +354,14 @@ async def _handle_normal_exit(
         await _handle_no_stage_change(orch, cfg, issue_id, entry, debug)
         return False
 
+    if orch._budget_grant_active(issue_id):
+        active = {normalize_state(s) for s in cfg.tracker.active_states} if cfg else set()
+        if normalize_state(entry.issue.state) in active and orch._budget_grant_spent(
+            issue_id
+        ):
+            await _stop_on_budget_grant_spent(orch, cfg, issue_id, entry, debug)
+            return False
+        return await _finalize_clean_exit(orch, cfg, issue_id, entry, debug, reason)
     max_total_turns = cfg.agent.max_total_turns if cfg is not None else 60
     if debug.completed_turn_count >= max_total_turns:
         await _stop_on_total_turn_budget(
@@ -651,6 +659,35 @@ async def _stop_on_total_turn_budget(
             target_state=target_state,
             budget_kind="turns",
         )
+
+
+async def _stop_on_budget_grant_spent(
+    orch: Orchestrator,
+    cfg: ServiceConfig | None,
+    issue_id: str,
+    entry: RunningEntry,
+    debug: _IssueDebug,
+) -> None:
+    orch._mark_budget_exhausted(issue_id)
+    orch._claimed.add(issue_id)
+    debug.last_error = f"operator budget grant spent in {entry.issue.state}"
+    log.warning(
+        "worker_budget_grant_spent",
+        issue_id=issue_id,
+        issue_identifier=entry.issue.identifier,
+        state=entry.issue.state,
+    )
+    target_state = cfg.agent.budget_exhausted_state if cfg is not None else ""
+    if target_state and cfg is not None:
+        persisted = await orch._persist_budget_exhausted_state(
+            cfg=cfg,
+            entry=entry,
+            issue_id=issue_id,
+            target_state=target_state,
+            budget_kind="budget_grant",
+        )
+        if persisted:
+            entry.issue = replace(entry.issue, state=target_state)
 
 
 async def _finalize_clean_exit(
