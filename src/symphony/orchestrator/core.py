@@ -3432,8 +3432,9 @@ class Orchestrator:
         reopen_used = None
         registry = self._run_registry
         if registry is not None:
-            records = await asyncio.to_thread(
-                self._registry_guard,
+            # The registry connection is bound to the loop thread (same read
+            # as `_prior_done_run_count`); an off-loop read always fails.
+            records = self._registry_guard(
                 "budget_reopen_history",
                 lambda: registry.recent_runs(issue.id, limit=200, status="normal"),
                 None,
