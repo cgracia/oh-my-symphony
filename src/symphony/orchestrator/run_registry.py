@@ -2318,6 +2318,25 @@ class RunRegistry:
         ).fetchall()
         return {str(row["issue_id"]) for row in rows}
 
+    def record_budget_hold(
+        self, issue_id: str, lane: str, *, now: datetime | None = None
+    ) -> None:
+        """Remember the lane the ticket's latest budget hold stopped in."""
+        self._connect().execute(
+            """
+            INSERT INTO budget_holds (issue_id, lane, held_at) VALUES (?, ?, ?)
+            ON CONFLICT(issue_id) DO UPDATE SET
+                lane = excluded.lane, held_at = excluded.held_at
+            """,
+            (issue_id, lane, _iso(_utc(now))),
+        )
+
+    def budget_hold_lane(self, issue_id: str) -> str | None:
+        row = self._connect().execute(
+            "SELECT lane FROM budget_holds WHERE issue_id = ?", (issue_id,)
+        ).fetchone()
+        return str(row["lane"]) if row is not None else None
+
     def _budget_grant_totals_locked(self, issue_id: str) -> tuple[int, int]:
         row = self._connect().execute(
             "SELECT COALESCE(SUM(extra_turns), 0) AS granted, "

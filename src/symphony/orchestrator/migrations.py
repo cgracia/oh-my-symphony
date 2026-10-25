@@ -612,6 +612,17 @@ def ensure_budget_grants_table(conn: sqlite3.Connection) -> None:
         ON budget_grants(issue_id, created_at)
         """
     )
+    # The active lane each ticket's latest budget hold stopped in. A grant
+    # may resume there or earlier, never past it (e.g. over a Verify).
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS budget_holds (
+            issue_id TEXT PRIMARY KEY,
+            lane TEXT NOT NULL,
+            held_at TEXT NOT NULL
+        )
+        """
+    )
 
 
 MIGRATIONS: tuple[Migration, ...] = (

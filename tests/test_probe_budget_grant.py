@@ -135,11 +135,11 @@ def _exhaust_max_turns(tmp_path: Path, orch: Orchestrator, cfg, *, turns: int = 
     return issue.id
 
 
-def _incident(tmp_path: Path, **agent_overrides):
-    """GH-129: exhaustion in one process, then a service restart."""
+def _incident(tmp_path: Path, lane: str = "In Progress", **agent_overrides):
+    """GH-129: exhaustion in `lane` in one process, then a service restart."""
     cfg = _cfg(tmp_path, **agent_overrides)
     _tracker(cfg).create(
-        identifier=ID, title="risk-B change", state="In Progress", description="body"
+        identifier=ID, title="risk-B change", state=lane, description="body"
     )
     first = _boot(tmp_path, cfg)
     issue_id = _exhaust_max_turns(tmp_path, first, cfg)
@@ -550,3 +550,94 @@ def test_G16_SEAM_ledger_stays_outside_the_numbered_schema_chain(tmp_path):
     ).fetchone()
     registry.close()
     _registry(tmp_path).close()  # reopening is idempotent
+
+
+def test_G17_SEAM_unreadable_grant_ledger_blocks_dispatch_until_loaded(
+    tmp_path, monkeypatch
+):
+    """A boot that cannot read which tickets hold grants must not let a
+    granted ticket fall back to ordinary `max_total_turns` accounting."""
+    orch, cfg, issue_id = _incident(tmp_path)
+    assert _grant(orch)[0]
+    orch._run_registry.close()
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("injected ledger read error")
+
+    monkeypatch.setattr(RunRegistry, "budget_grant_issue_ids", _boom)
+    again = _boot(tmp_path, cfg)
+    assert not again._budget_grant_active(issue_id)
+    assert _eligibility(again, cfg).code == "budget_grants_unread"
+    assert _eligibility(again, cfg).code == "budget_grants_unread"  # retried
+    monkeypatch.undo()
+    assert _eligibility(again, cfg) is None or (
+        _eligibility(again, cfg).code != "budget_grants_unread"
+    )
+    assert again._budget_grant_active(issue_id)
+
+
+@pytest.mark.parametrize(
+    ("lane", "target", "allowed"),
+    [
+        ("Verify", "Document", False),
+        ("Verify", "Verify", True),
+        ("Verify", "In Progress", True),
+        ("In Progress", "Verify", True),
+        ("In Progress", "Document", False),
+    ],
+)
+def test_G18_SEAM_a_grant_never_skips_verify(tmp_path, lane, target, allowed):
+    orch, cfg, issue_id = _incident(tmp_path, lane=lane)
+    changed, message, _ = _grant(orch, target=target)
+    assert changed is allowed, message
+    if not allowed:
+        assert "may not skip Verify" in message
+        assert _flag(orch, issue_id) and _ledger(orch, issue_id) == []
+        assert _fetch(orch, cfg).state == "Blocked"
+
+
+def test_G18b_SEAM_board_edits_cannot_move_the_hold_lane_forward(tmp_path):
+    """Workers can edit the card; the registry keeps where the hold stopped.
+    Without any record the hold counts from the first active lane."""
+    orch, cfg, issue_id = _incident(tmp_path, lane="Verify")
+    _move(orch, cfg, "Document")  # still held: the flag blocks dispatch
+    changed, message, _ = _grant(orch, target="Document")
+    assert not changed and "may not skip Verify" in message
+    orch._run_registry._connect().execute("DELETE FROM budget_holds")
+    _move(orch, cfg, "Blocked")
+    changed, message, _ = _grant(orch, target="Document")
+    assert not changed and "may not skip Verify" in message
+    assert _grant(orch, target="Verify")[0]
+
+
+def test_G19_SEAM_a_late_replay_never_rewinds_the_lifecycle(tmp_path):
+    """Replaying a grant that already ran changes nothing: not a later hold,
+    not a ticket that has since reached Human Review."""
+    orch, cfg, issue_id = _incident(tmp_path, budget_grant_max_turns=3)
+    assert _grant(orch, turns=3)[0]
+    assert orch._charge_budget_grant_turn(issue_id)
+    _move(orch, cfg, "Human Review")
+    changed, message, details = _grant(orch, turns=3)
+    assert changed and details["status"] == "replayed" and "already in use" in message
+    assert _fetch(orch, cfg).state == "Human Review"
+    # Spent and held again: a replay must not lift the new hold.
+    _move(orch, cfg, "Verify")
+    _exhaust_max_turns(tmp_path, orch, cfg)
+    changed, _message, _ = _grant(orch, turns=3)
+    assert changed and _flag(orch, issue_id)
+    assert issue_id in orch._turn_budget_exhausted
+    assert _fetch(orch, cfg).state == "Blocked"
+
+
+def test_G19b_SEAM_an_unstarted_replay_moves_only_a_card_still_parked(tmp_path):
+    orch, cfg, issue_id = _incident(tmp_path)
+    issue = _fetch(orch, cfg)
+    assert orch._run_registry.grant_budget(
+        grant_id="gh-t-grant-0001", issue_id=issue_id, identifier=ID,
+        actor=ACTOR, reason=REASON, extra_turns=3, lifetime_cap=10,
+        from_state=issue.state, target_state="Verify",
+    ).status == "granted"
+    _move(orch, cfg, "Done")  # owner closed it before any granted turn
+    _changed, _message, details = _grant(orch)
+    assert details["status"] == "replayed"
+    assert _fetch(orch, cfg).state == "Done"

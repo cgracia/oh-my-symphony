@@ -1074,6 +1074,10 @@ class Orchestrator:
         # Issues with operator budget grants in the registry ledger: their
         # turns are charged to the ledger instead of `max_total_turns`.
         self._budget_granted: set[str] = set()
+        # True while that set could not be read from an open registry: no
+        # ticket dispatches until it loads, so a granted ticket can never
+        # fall back to ordinary turn accounting.
+        self._budget_grants_unread = False
         # Tickets whose worker-exit handler is mid-flight. `_on_worker_exit`
         # adds the id on entry and clears it in a `finally`, so from the moment
         # a worker leaves `_running` until its terminal-state persist (or retry
@@ -1411,11 +1415,17 @@ class Orchestrator:
             log.info("run_leases_expired_on_start", count=expired, path=str(path))
         flags = self._registry_guard("list_issue_flags", registry.list_issue_flags, [])
         self._rehydrate_issue_flags(flags, cfg=cfg, registry=registry)
-        self._budget_granted = set(
-            self._registry_guard(
-                "budget_grant_issue_ids", registry.budget_grant_issue_ids, set()
-            )
+        self._load_budget_grants(registry)
+
+    def _load_budget_grants(self, registry: RunRegistry) -> bool:
+        """Load which tickets spend ledger turns; False while unreadable."""
+        ids = self._registry_guard(
+            "budget_grant_issue_ids", registry.budget_grant_issue_ids, None
         )
+        self._budget_grants_unread = ids is None
+        if ids is not None:
+            self._budget_granted = set(ids)
+        return ids is not None
 
     def _ensure_run_registry(self, cfg: ServiceConfig) -> None:
         """Open the registry and reclaim dead-owner leases (blocking form).
@@ -2679,10 +2689,18 @@ class Orchestrator:
             None,
         )
 
-    def _mark_budget_exhausted(self, issue_id: str) -> None:
+    def _mark_budget_exhausted(self, issue_id: str, lane: str | None = None) -> None:
         self._turn_budget_exhausted.add(issue_id)
         self._persisted_retry_attempts.pop(issue_id, None)
         self._set_issue_flags(issue_id, budget_exhausted=True, retry_attempt=None)
+        registry = self._run_registry
+        if lane and registry is not None:
+            # Bounds where an operator grant may resume (never past Verify).
+            self._registry_guard(
+                "record_budget_hold",
+                lambda: registry.record_budget_hold(issue_id, lane),
+                None,
+            )
 
     def _has_active_run_lease(self, issue_id: str) -> bool:
         if self._run_registry is None:
@@ -3172,6 +3190,7 @@ class Orchestrator:
         self._pause_events.clear()
         self._turn_budget_exhausted.clear()
         self._budget_granted.clear()
+        self._budget_grants_unread = False
         self._lease_blocked.clear()
         self._blocked_rca_source_ids.clear()
         self._history_recovery_attempted.clear()
@@ -5212,6 +5231,14 @@ class Orchestrator:
                 f"(state={issue.state}, target_state={target_state})",
                 {},
             )
+        skipped = self._budget_grant_skipped_verify(cfg, issue, target)
+        if skipped is not None:
+            return (
+                False,
+                f"a grant may not skip {skipped}: {identifier} was held before "
+                f"it, so resume in {skipped} or an earlier lane",
+                {},
+            )
         try:
             result = registry.grant_budget(
                 grant_id=grant_id,
@@ -5249,6 +5276,17 @@ class Orchestrator:
             )
         grant = result.grant
         assert grant is not None
+        details["status"] = result.status
+        if result.status == "replayed" and grant.turns_used > 0:
+            # The grant already took effect; a late replay must not undo a
+            # later hold or drag the ticket back into the lifecycle.
+            details["used_total"] = result.used_total
+            return (
+                True,
+                f"grant {grant_id} already in use ({grant.turns_used} of "
+                f"{grant.extra_turns} turn(s) spent); nothing to converge",
+                details,
+            )
         self._turn_budget_exhausted.discard(issue.id)
         self._budget_granted.add(issue.id)
         debug = self._issue_debug.setdefault(issue.id, _IssueDebug())
@@ -5265,15 +5303,14 @@ class Orchestrator:
                 lifetime_cap=cap,
                 reason=reason,
             )
-        details["status"] = result.status
         details["mirror"] = await self._mirror_budget_grant(cfg, issue, grant, result, cap)
         fresh = await asyncio.to_thread(
             self._tracker_call_fetch_issue_full_by_id, cfg, identifier
         )
         current = fresh or issue
-        if normalize_state(current.state) not in active:
-            # Only a still-parked card moves; a replay never drags a ticket
-            # that already progressed.
+        if normalize_state(current.state) == normalize_state(grant.from_state):
+            # Only a card still parked where the grant found it moves; a
+            # replay never drags a ticket that was moved since.
             try:
                 await asyncio.to_thread(
                     self._tracker_call_update_state, cfg, current, grant.target_state
@@ -5331,6 +5368,37 @@ class Orchestrator:
             )
             return "failed"
         return "written"
+
+    def _budget_grant_skipped_verify(
+        self, cfg: ServiceConfig, issue: Issue, target: str
+    ) -> str | None:
+        """The Verify lane a grant into `target` would skip, if any.
+
+        The hold lane is the earliest of the registry's record and the card's
+        own lane when that is active; with neither, the first active lane. A
+        lane is skipped when it lies at or after the hold lane and before the
+        target, so a ticket held in Verify (or earlier) never resumes past it.
+        """
+        order = [normalize_state(state) for state in cfg.tracker.active_states]
+        registry = self._run_registry
+        recorded = (
+            self._registry_guard(
+                "budget_hold_lane", lambda: registry.budget_hold_lane(issue.id), None
+            )
+            if registry is not None
+            else None
+        )
+        held = [
+            order.index(lane)
+            for lane in (normalize_state(recorded or ""), normalize_state(issue.state))
+            if lane in order
+        ]
+        start = min(held) if held else 0
+        end = order.index(normalize_state(target))
+        for state in cfg.tracker.active_states[start:end]:
+            if normalize_state(state) == "verify":
+                return state
+        return None
 
     def _budget_grant_active(self, issue_id: str) -> bool:
         return issue_id in self._budget_granted
@@ -6158,6 +6226,15 @@ class Orchestrator:
                 _EligibilityDisposition.REJECT,
                 "budget_exhausted",
                 "turn budget exhausted",
+            )
+        if self._budget_grants_unread and not (
+            self._run_registry is not None
+            and self._load_budget_grants(self._run_registry)
+        ):
+            return _EligibilityDecision(
+                _EligibilityDisposition.REJECT,
+                "budget_grants_unread",
+                "operator budget grant ledger unreadable; retrying",
             )
         if issue.id in self._terminal_persist_pending:
             return _EligibilityDecision(

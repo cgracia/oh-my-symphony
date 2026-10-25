@@ -537,7 +537,7 @@ async def _handle_token_budget(
                 to_state=after_state,
             )
             return True
-        orch._mark_budget_exhausted(issue_id)
+        orch._mark_budget_exhausted(issue_id, entry.issue.state)
         orch._claimed.add(issue_id)
         cap = entry.token_budget_cap or orch._token_cap_for_entry(cfg, entry)
         debug.last_error = (
@@ -563,7 +563,7 @@ async def _handle_token_budget(
             budget_kind="tokens",
         )
         return False
-    orch._mark_budget_exhausted(issue_id)
+    orch._mark_budget_exhausted(issue_id, entry.issue.state)
     orch._claimed.add(issue_id)
     debug.last_error = "max_total_tokens reached; workflow config unavailable"
     return False
@@ -632,7 +632,7 @@ async def _stop_on_total_turn_budget(
     debug: _IssueDebug,
     max_total_turns: int,
 ) -> None:
-    orch._mark_budget_exhausted(issue_id)
+    orch._mark_budget_exhausted(issue_id, entry.issue.state)
     orch._claimed.add(issue_id)
     debug.last_error = (
         f"max_total_turns reached ({debug.completed_turn_count}/{max_total_turns})"
@@ -668,7 +668,7 @@ async def _stop_on_budget_grant_spent(
     entry: RunningEntry,
     debug: _IssueDebug,
 ) -> None:
-    orch._mark_budget_exhausted(issue_id)
+    orch._mark_budget_exhausted(issue_id, entry.issue.state)
     orch._claimed.add(issue_id)
     debug.last_error = f"operator budget grant spent in {entry.issue.state}"
     log.warning(
@@ -931,7 +931,7 @@ async def _stop_on_max_turns(
     # auto-continuation and, when the workflow exposes a Blocked
     # terminal state, persist that state so the web/TUI boards do
     # not look idle while the ticket is actually operator-blocked.
-    orch._mark_budget_exhausted(issue_id)
+    orch._mark_budget_exhausted(issue_id, entry.issue.state)
     orch._claimed.add(issue_id)
     attempt_cap = cfg.agent.max_turns if cfg is not None else 0
     target_state = _max_turns_exhausted_target_state(cfg) if cfg is not None else ""
