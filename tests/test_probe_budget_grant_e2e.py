@@ -35,6 +35,16 @@ from tests.test_agent_lifecycle_e2e import (
 )
 
 ID = "LIFE-1"
+
+
+class _HacpLaneBackend(_FileBoardLifecycleBackend):
+    """The HACP lane ends at Human Review; the owner decides the merge."""
+
+    transitions = {
+        "In Progress": "Verify",
+        "Verify": "Document",
+        "Document": "Human Review",
+    }
 STAGE_KINDS = {"in progress": "codex", "verify": "claude", "document": "codex"}
 
 
@@ -53,7 +63,10 @@ def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             max_total_turns=30,
             budget_exhausted_state="Blocked",
             budget_grant_max_turns=10,
-            auto_recover_blocked=False,  # as in the HACP lane
+            # As in the HACP lane: no auto-recovery, commit or merge.
+            auto_recover_blocked=False,
+            auto_commit_on_done=False,
+            auto_merge_on_done=False,
         ),
     )
     tracker = FileBoardTracker(cfg.tracker)
@@ -81,7 +94,7 @@ def _setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     built: list[tuple[str, _FileBoardLifecycleBackend]] = []
 
     def _factory(init: Any) -> _FileBoardLifecycleBackend:
-        backend = _FileBoardLifecycleBackend(
+        backend = _HacpLaneBackend(
             cfg=init.cfg, cwd=init.cwd, init_id=len(built)
         )
         built.append((init.cfg.agent.kind, backend))
@@ -133,7 +146,10 @@ def test_E1_SEAM_grant_resumes_verify_on_the_verifier_family(tmp_path, monkeypat
 
     asyncio.run(_run())
     assert _ran(built) == [("claude", "Verify"), ("codex", "Document")]
-    assert _state(cfg) == "Done"
+    # Document moved the card to Human Review; the harness body carries merge
+    # evidence, so the pre-existing legacy normalization may then file it as
+    # Done. Either way it left the active lanes normally, not via a budget hold.
+    assert _state(cfg) in {"Human Review", "Done"}
     assert o._run_registry.budget_grant_totals(issue_id) == (3, 2)
     assert issue_id not in o._turn_budget_exhausted
 
