@@ -1562,3 +1562,11 @@ def test_filename_alias_uses_canonical_ticket_lock(tmp_path):
     tracker = FileBoardTracker(_tracker(tmp_path))
     _write(tmp_path, "alias.md", "---\nid: CAS-1\ntitle: CAS\nstate: Todo\n---\nbody\n")
     assert tracker._ticket_lock_path("alias") == tracker._ticket_lock_path("CAS-1")
+
+
+
+def test_delete_malformed_card_keeps_legacy_behavior(tmp_path):
+    path = _write(tmp_path, "BAD.md", "---\nnot closed")
+    tracker = FileBoardTracker(_tracker(tmp_path))
+    assert tracker.delete("BAD") == path
+    assert not path.exists()

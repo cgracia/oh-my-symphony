@@ -608,7 +608,12 @@ class FileBoardTracker:
         # Both aliases must contend on the same ticket lock.
         path = self.find_path(identifier)
         if path is not None:
-            front, _ = parse_ticket_file(path)
+            try:
+                front, _ = parse_ticket_file(path)
+            except (SymphonyError, OSError):
+                # Preserve delete of malformed cards and missing_ok races.
+                # A mutation still has to parse successfully inside the lock.
+                return self._lock_path(identifier)
             identifier = str(front.get("id") or front.get("identifier") or identifier)
         return self._lock_path(identifier)
 
