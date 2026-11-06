@@ -1530,3 +1530,35 @@ def test_failed_state_guard_does_not_apply_other_fields(tmp_path):
     with pytest.raises(TicketPreconditionFailed):
         tracker.update_fields("CAS-1", state="Done", title="wrong", description="wrong", expected_state="Doing")
     assert path.read_bytes() == original
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX process lock proof")
+def test_cas_serializes_processes(tmp_path):
+    import multiprocessing
+    from symphony.trackers.file import TicketPreconditionFailed, ticket_revision
+    ctx = multiprocessing.get_context("fork")
+    path = _write(tmp_path, "CAS-1.md", "---\nid: CAS-1\ntitle: CAS\nstate: Todo\n---\nbody\n")
+    revision = ticket_revision(path)
+    barrier, results = ctx.Barrier(2), ctx.Queue()
+    def worker():
+        tracker = FileBoardTracker(_tracker(tmp_path))
+        barrier.wait(timeout=5)
+        try:
+            tracker.transition("CAS-1", "Done", expected_state="Todo", expected_revision=revision)
+            results.put("moved")
+        except TicketPreconditionFailed:
+            results.put("refused")
+    processes = [ctx.Process(target=worker) for _ in range(2)]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=10)
+        assert process.exitcode == 0
+    assert sorted(results.get(timeout=1) for _ in processes) == ["moved", "refused"]
+
+
+
+def test_filename_alias_uses_canonical_ticket_lock(tmp_path):
+    tracker = FileBoardTracker(_tracker(tmp_path))
+    _write(tmp_path, "alias.md", "---\nid: CAS-1\ntitle: CAS\nstate: Todo\n---\nbody\n")
+    assert tracker._ticket_lock_path("alias") == tracker._ticket_lock_path("CAS-1")

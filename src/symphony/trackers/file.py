@@ -604,6 +604,12 @@ class FileBoardTracker:
         return self._lock_path("allocator")
 
     def _ticket_lock_path(self, identifier: str) -> Path:
+        # A noncanonical filename may also resolve by its frontmatter id.
+        # Both aliases must contend on the same ticket lock.
+        path = self.find_path(identifier)
+        if path is not None:
+            front, _ = parse_ticket_file(path)
+            identifier = str(front.get("id") or front.get("identifier") or identifier)
         return self._lock_path(identifier)
 
     def _sweep_stale_temps(self) -> None:

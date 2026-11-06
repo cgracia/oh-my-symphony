@@ -2504,3 +2504,40 @@ async def test_concurrent_guarded_patches_have_one_winner(client: TestClient) ->
     payload = {"state": "Done", "expected_state": detail["state"], "expected_revision": detail["revision"]}
     responses = await asyncio.gather(*(client.patch(url, json=payload) for _ in range(2)))
     assert sorted(r.status for r in responses) == [200, 409]
+
+
+async def test_detail_race_keeps_legacy_response_without_guard(client: TestClient, monkeypatch) -> None:
+    import symphony.webapi as api
+    from symphony.trackers.file import TicketPreconditionFailed
+    def changed(path):
+        raise TicketPreconditionFailed("concurrent replacement")
+    monkeypatch.setattr(api, "ticket_revision", changed)
+    response = await client.get("/api/v1/issues/SEED-1")
+    assert response.status == 200
+    detail = await response.json()
+    assert "revision" not in detail and "transition_guard" not in detail
+    assert detail["frontmatter"]["id"] == "SEED-1"
+
+
+async def test_guarded_patch_write_error_is_not_precondition_failure(client: TestClient, monkeypatch) -> None:
+    from symphony.errors import SymphonyError
+    from symphony.trackers.file import FileBoardTracker
+    url = "/api/v1/issues/SEED-1"
+    detail = await (await client.get(url)).json()
+    original = FileBoardTracker.update_fields
+    def landed_then_failed(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        raise SymphonyError("indeterminate write")
+    monkeypatch.setattr(FileBoardTracker, "update_fields", landed_then_failed)
+    response = await client.patch(url, json={"state": "Done", "expected_revision": detail["revision"]})
+    assert response.status != 200 and response.status != 409
+    assert (await (await client.get(url)).json())["state"] == "Done"
+
+
+async def test_guarded_patch_refuses_live_worker(client: TestClient) -> None:
+    url = "/api/v1/issues/SEED-1"
+    detail = await (await client.get(url)).json()
+    client.stub.running_identifiers["SEED-1"] = "iss-1"
+    response = await client.patch(url, json={"state": "Done", "expected_revision": detail["revision"]})
+    assert response.status == 409
+    assert (await (await client.get(url)).json())["state"] == detail["state"]

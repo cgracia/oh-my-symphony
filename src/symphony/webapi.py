@@ -1595,12 +1595,21 @@ def _register_issue_routes(
         path = await asyncio.to_thread(tracker.find_path, identifier)
         if path is None:
             return _json_error(404, "issue_not_found", f"unknown issue {identifier}")
-        # Coherent generation for the guarded PATCH. A changed read refuses;
-        # it must never attach a newer generation to an older admission body.
-        revision = await asyncio.to_thread(ticket_revision, path)
-        front, body_text = await asyncio.to_thread(parse_ticket_file, path)
-        if await asyncio.to_thread(ticket_revision, path) != revision:
-            return _json_error(409, "precondition_failed", "ticket changed during read")
+        # Revision support is additive for existing detail consumers. A
+        # racing read may still return detail, but never a usable CAS token.
+        revision = None
+        for _ in range(3):
+            try:
+                before = await asyncio.to_thread(ticket_revision, path)
+                front, body_text = await asyncio.to_thread(parse_ticket_file, path)
+                after = await asyncio.to_thread(ticket_revision, path)
+                if before == after:
+                    revision = after
+                    break
+            except TicketPreconditionFailed:
+                continue
+        if revision is None:
+            front, body_text = await asyncio.to_thread(parse_ticket_file, path)
         issue = await asyncio.to_thread(tracker.fetch_issue_full_by_id, identifier)
         card = (
             _issue_card(issue, attention=orchestrator.issue_attention(issue))
@@ -1648,9 +1657,9 @@ def _register_issue_routes(
                 **card,
                 "description": body_text,
                 "frontmatter": _json_safe(front),
-                "state": front.get("state"),
-                "revision": revision,
-                "transition_guard": "ticket-cas-v1",
+                **({"state": front["state"]} if isinstance(front.get("state"), str) else {}),
+                **({"revision": revision, "transition_guard": "ticket-cas-v1"}
+                   if revision is not None else {}),
                 "live": live,
                 "scheduling": scheduling,
                 "budgets": budgets,
@@ -1777,8 +1786,9 @@ def _register_issue_routes(
             return _json_error(400, "empty_patch", "no editable fields in body")
         if (
             new_state is not None
-            and new_state.lower() != current.state.lower()
-            and orchestrator.find_running_issue_id(identifier) is not None
+            and (guards or new_state.lower() != current.state.lower())
+            and (orchestrator.find_running_issue_id(identifier) is not None
+                 or (bool(guards) and identifier in _live_by_identifier(orchestrator)))
         ):
             return _json_error(
                 409,
@@ -1789,15 +1799,13 @@ def _register_issue_routes(
             if guards:
                 # No await between the live-run check above and the locked
                 # mutation: this daemon cannot dispatch in that interval.
-                tracker.update_fields(identifier, **fields, **guards)
+                tracker.update_fields(identifier, **fields,
+                                      expected_state=guards.get("expected_state"),
+                                      expected_revision=guards.get("expected_revision"))
             else:
                 await asyncio.to_thread(tracker.update_fields, identifier, **fields)
         except TicketPreconditionFailed as exc:
             return _json_error(409, "precondition_failed", str(exc))
-        except SymphonyError:
-            if guards:
-                return _json_error(409, "precondition_failed", "ticket unavailable")
-            raise
         if new_state is not None and new_state.lower() != current.state.lower():
             await asyncio.to_thread(
                 ctx.stats().record_transition,
