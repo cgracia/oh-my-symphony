@@ -76,7 +76,7 @@ from .skills import normalize_skill_names
 from .artifacts import ArtifactRecord, ArtifactStore
 from .stats import StatsStore, stats_store_for
 from .trackers import context_manager as tracker_context_manager
-from .trackers.file import FileBoardTracker, parse_ticket_file
+from .trackers.file import FileBoardTracker, TicketPreconditionFailed, parse_ticket_file, ticket_revision
 from .trackers.validate import (
     IDENTIFIER_RE as _IDENTIFIER_RE,
     IDENTIFIER_RULE as _IDENTIFIER_RULE,
@@ -1595,7 +1595,21 @@ def _register_issue_routes(
         path = await asyncio.to_thread(tracker.find_path, identifier)
         if path is None:
             return _json_error(404, "issue_not_found", f"unknown issue {identifier}")
-        front, body_text = await asyncio.to_thread(parse_ticket_file, path)
+        # Revision support is additive for existing detail consumers. A
+        # racing read may still return detail, but never a usable CAS token.
+        revision = None
+        for _ in range(3):
+            try:
+                before = await asyncio.to_thread(ticket_revision, path)
+                front, body_text = await asyncio.to_thread(parse_ticket_file, path)
+                after = await asyncio.to_thread(ticket_revision, path)
+                if before == after:
+                    revision = after
+                    break
+            except TicketPreconditionFailed:
+                continue
+        if revision is None:
+            front, body_text = await asyncio.to_thread(parse_ticket_file, path)
         issue = await asyncio.to_thread(tracker.fetch_issue_full_by_id, identifier)
         card = (
             _issue_card(issue, attention=orchestrator.issue_attention(issue))
@@ -1643,6 +1657,9 @@ def _register_issue_routes(
                 **card,
                 "description": body_text,
                 "frontmatter": _json_safe(front),
+                **({"state": front["state"]} if isinstance(front.get("state"), str) else {}),
+                **({"revision": revision, "transition_guard": "ticket-cas-v1"}
+                   if revision is not None else {}),
                 "live": live,
                 "scheduling": scheduling,
                 "budgets": budgets,
@@ -1714,6 +1731,17 @@ def _register_issue_routes(
         if current is None:
             return _json_error(404, "issue_not_found", f"unknown issue {identifier}")
 
+        guards: dict[str, str] = {}
+        if "expected_state" in body:
+            value = body["expected_state"]
+            if not isinstance(value, str) or not value.strip():
+                raise WorkflowMutationError("expected_state must be a nonempty string")
+            guards["expected_state"] = value
+        if "expected_revision" in body:
+            value = body["expected_revision"]
+            if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
+                raise WorkflowMutationError("expected_revision must be a SHA-256 token")
+            guards["expected_revision"] = value
         fields: dict[str, Any] = {}
         if "title" in body:
             fields["title"] = _check_title(body.get("title"))
@@ -1758,15 +1786,26 @@ def _register_issue_routes(
             return _json_error(400, "empty_patch", "no editable fields in body")
         if (
             new_state is not None
-            and new_state.lower() != current.state.lower()
-            and orchestrator.find_running_issue_id(identifier) is not None
+            and (guards or new_state.lower() != current.state.lower())
+            and (orchestrator.find_running_issue_id(identifier) is not None
+                 or (bool(guards) and identifier in _live_by_identifier(orchestrator)))
         ):
             return _json_error(
                 409,
                 "state_in_use",
                 f"{identifier} has a running worker; pause or wait before changing state",
             )
-        await asyncio.to_thread(tracker.update_fields, identifier, **fields)
+        try:
+            if guards:
+                # No await between the live-run check above and the locked
+                # mutation: this daemon cannot dispatch in that interval.
+                tracker.update_fields(identifier, **fields,
+                                      expected_state=guards.get("expected_state"),
+                                      expected_revision=guards.get("expected_revision"))
+            else:
+                await asyncio.to_thread(tracker.update_fields, identifier, **fields)
+        except TicketPreconditionFailed as exc:
+            return _json_error(409, "precondition_failed", str(exc))
         if new_state is not None and new_state.lower() != current.state.lower():
             await asyncio.to_thread(
                 ctx.stats().record_transition,

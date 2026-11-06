@@ -2463,3 +2463,81 @@ async def test_issue_detail_survives_budget_projection_failure(client, monkeypat
     payload = await response.json()
     assert payload["description"] == "Seed body."
     assert payload["budgets"] == {"available": False, "items": []}
+
+
+async def test_patch_optional_cas_and_legacy(client: TestClient) -> None:
+    url = "/api/v1/issues/SEED-1"
+    detail = await (await client.get(url)).json()
+    assert detail["transition_guard"] == "ticket-cas-v1"
+    guard = {"expected_state": detail["state"], "expected_revision": detail["revision"]}
+    assert (await client.patch(url, json={"state": "Done", **guard})).status == 200
+    assert (await client.patch(url, json={"state": "Doing", **guard})).status == 409
+    assert (await client.patch(url, json={"state": "Doing"})).status == 200
+    assert (await client.patch(url, json={"state": "Done", "expected_state": "Todo"})).status == 409
+
+
+@pytest.mark.parametrize("bad", [None, "", 1, [], {}])
+async def test_patch_rejects_malformed_guard(client: TestClient, bad) -> None:
+    url = "/api/v1/issues/SEED-1"
+    for key in ("expected_state", "expected_revision"):
+        assert (await client.patch(url, json={"state": "Done", key: bad})).status == 400
+
+
+async def test_patch_cas_rejects_same_state_edit_and_replacement(client: TestClient, board_dir: Path) -> None:
+    url = "/api/v1/issues/SEED-1"
+    detail = await (await client.get(url)).json()
+    path = board_dir / "kanban" / "SEED-1.md"
+    original = path.read_bytes()
+    replacement = path.with_suffix(".new")
+    replacement.write_bytes(original)
+    replacement.replace(path)
+    assert (await client.patch(url, json={"state": "Done", "expected_revision": detail["revision"]})).status == 409
+    assert path.read_bytes() == original
+    detail = await (await client.get(url)).json()
+    assert (await client.patch(url, json={"title": "edited"})).status == 200
+    assert (await client.patch(url, json={"state": "Done", "expected_revision": detail["revision"]})).status == 409
+
+
+async def test_concurrent_guarded_patches_have_one_winner(client: TestClient) -> None:
+    url = "/api/v1/issues/SEED-1"
+    detail = await (await client.get(url)).json()
+    payload = {"state": "Done", "expected_state": detail["state"], "expected_revision": detail["revision"]}
+    responses = await asyncio.gather(*(client.patch(url, json=payload) for _ in range(2)))
+    assert sorted(r.status for r in responses) == [200, 409]
+
+
+async def test_detail_race_keeps_legacy_response_without_guard(client: TestClient, monkeypatch) -> None:
+    import symphony.webapi as api
+    from symphony.trackers.file import TicketPreconditionFailed
+    def changed(path):
+        raise TicketPreconditionFailed("concurrent replacement")
+    monkeypatch.setattr(api, "ticket_revision", changed)
+    response = await client.get("/api/v1/issues/SEED-1")
+    assert response.status == 200
+    detail = await response.json()
+    assert "revision" not in detail and "transition_guard" not in detail
+    assert detail["frontmatter"]["id"] == "SEED-1"
+
+
+async def test_guarded_patch_write_error_is_not_precondition_failure(client: TestClient, monkeypatch) -> None:
+    from symphony.errors import SymphonyError
+    from symphony.trackers.file import FileBoardTracker
+    url = "/api/v1/issues/SEED-1"
+    detail = await (await client.get(url)).json()
+    original = FileBoardTracker.update_fields
+    def landed_then_failed(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        raise SymphonyError("indeterminate write")
+    monkeypatch.setattr(FileBoardTracker, "update_fields", landed_then_failed)
+    response = await client.patch(url, json={"state": "Done", "expected_revision": detail["revision"]})
+    assert response.status != 200 and response.status != 409
+    assert (await (await client.get(url)).json())["state"] == "Done"
+
+
+async def test_guarded_patch_refuses_live_worker(client: TestClient) -> None:
+    url = "/api/v1/issues/SEED-1"
+    detail = await (await client.get(url)).json()
+    client.stub.running_identifiers["SEED-1"] = "iss-1"
+    response = await client.patch(url, json={"state": "Done", "expected_revision": detail["revision"]})
+    assert response.status == 409
+    assert (await (await client.get(url)).json())["state"] == detail["state"]
