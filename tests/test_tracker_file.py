@@ -1496,3 +1496,37 @@ def test_upsert_artifacts_section_strips_markers_from_the_payload(tmp_path):
     assert body.count("<!-- symphony-artifacts -->") == 1
     assert body.count("<!-- /symphony-artifacts -->") == 1
     assert body.count("## Artifacts") == 1
+
+
+@pytest.mark.parametrize("method", ["transition", "update_fields"])
+def test_guarded_transition_serializes_independent_trackers(tmp_path, method):
+    from concurrent.futures import ThreadPoolExecutor
+    from symphony.trackers.file import TicketPreconditionFailed, ticket_revision
+    path = _write(tmp_path, "CAS-1.md", "---\nid: CAS-1\ntitle: CAS\nstate: Todo\n---\nbody\n")
+    revision = ticket_revision(path)
+    barrier = threading.Barrier(2)
+    def move():
+        tracker = FileBoardTracker(_tracker(tmp_path))
+        barrier.wait(timeout=5)
+        try:
+            if method == "transition":
+                tracker.transition("CAS-1", "Done", expected_state="Todo", expected_revision=revision)
+            else:
+                tracker.update_fields("CAS-1", state="Done", expected_state="Todo", expected_revision=revision)
+            return "moved"
+        except TicketPreconditionFailed:
+            return "refused"
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(lambda _: move(), range(2)))
+    assert sorted(results) == ["moved", "refused"]
+    assert parse_ticket_file(path)[0]["state"] == "Done"
+
+
+def test_failed_state_guard_does_not_apply_other_fields(tmp_path):
+    from symphony.trackers.file import TicketPreconditionFailed
+    path = _write(tmp_path, "CAS-1.md", "---\nid: CAS-1\ntitle: CAS\nstate: Todo\n---\nbody\n")
+    original = path.read_bytes()
+    tracker = FileBoardTracker(_tracker(tmp_path))
+    with pytest.raises(TicketPreconditionFailed):
+        tracker.update_fields("CAS-1", state="Done", title="wrong", description="wrong", expected_state="Doing")
+    assert path.read_bytes() == original

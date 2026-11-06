@@ -33,6 +33,7 @@ Conventions:
 from __future__ import annotations
 
 import errno
+import hashlib
 import os
 import re
 import tempfile
@@ -566,6 +567,23 @@ def _is_owned_tracker_temp(path: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
+class TicketPreconditionFailed(SymphonyError):
+    """The locked ticket no longer matches the caller's observation."""
+
+
+def ticket_revision(path: Path) -> str:
+    """Opaque local file generation; detects identical-byte replacement (ABA)."""
+    with path.open("rb") as stream:
+        before = os.fstat(stream.fileno())
+        payload = stream.read()
+        after = os.fstat(stream.fileno())
+    def generation(st):
+        return (st.st_dev, st.st_ino, st.st_mtime_ns, st.st_ctime_ns, st.st_size)
+    if generation(before) != generation(after):
+        raise TicketPreconditionFailed("ticket changed while reading revision")
+    return hashlib.sha256(payload + repr(generation(after)).encode()).hexdigest()
+
+
 class FileBoardTracker:
     """Adapter over a directory of Markdown ticket files."""
 
@@ -780,6 +798,8 @@ class FileBoardTracker:
         mutate: _TicketMutation,
         *,
         missing_ok: bool = False,
+        expected_state: str | None = None,
+        expected_revision: str | None = None,
     ) -> Path | None:
         path = self.find_path(identifier)
         if path is None:
@@ -792,6 +812,16 @@ class FileBoardTracker:
                 if missing_ok:
                     return None
                 raise SymphonyError("ticket not found", identifier=identifier)
+            def check_preconditions(front):
+                if expected_state is not None and front.get("state") != expected_state:
+                    raise TicketPreconditionFailed("expected_state does not match ticket")
+                if expected_revision is not None and ticket_revision(path) != expected_revision:
+                    raise TicketPreconditionFailed("expected_revision does not match ticket")
+            original_mutate = mutate
+            def guarded_mutate(front, body):
+                check_preconditions(front)
+                return original_mutate(front, body)
+            mutate = guarded_mutate
             seen_mtime_ns = _file_mtime_ns(path)
             front, body = parse_ticket_file(path)
             seen_token = (front.get("updated_at"), seen_mtime_ns)
@@ -825,7 +855,9 @@ class FileBoardTracker:
             front, body = result
         write_ticket_atomic(path, front, body)
 
-    def transition(self, identifier: str, new_state: str) -> Path:
+    def transition(self, identifier: str, new_state: str, *,
+                   expected_state: str | None = None,
+                   expected_revision: str | None = None) -> Path:
         def mutate(front: dict[str, Any], body: str) -> tuple[dict[str, Any], str]:
             front["state"] = new_state
             front["updated_at"] = datetime.now(timezone.utc).strftime(
@@ -833,7 +865,8 @@ class FileBoardTracker:
             )
             return front, body
 
-        path = self._mutate_ticket(identifier, mutate)
+        path = self._mutate_ticket(identifier, mutate, expected_state=expected_state,
+                                   expected_revision=expected_revision)
         assert path is not None
         return path
 
@@ -1185,6 +1218,8 @@ class FileBoardTracker:
         agent_kind: str | None = None,
         blocked_by: list[str] | None = None,
         request: str | None = None,
+        expected_state: str | None = None,
+        expected_revision: str | None = None,
     ) -> Path:
         """Partial ticket update from the board UI. None = leave unchanged.
 
@@ -1235,7 +1270,8 @@ class FileBoardTracker:
             )
             return front, body if description is None else description
 
-        path = self._mutate_ticket(identifier, mutate)
+        path = self._mutate_ticket(identifier, mutate, expected_state=expected_state,
+                                   expected_revision=expected_revision)
         assert path is not None
         return path
 
