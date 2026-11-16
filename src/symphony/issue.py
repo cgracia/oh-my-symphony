@@ -37,6 +37,19 @@ class Issue:
     # `stage_kinds`-routed board the pin field must stay empty or the first
     # lane's backend would freeze for the whole ticket (F-20).
     last_agent_kind: str | None = None
+    # Per-ticket, per-stage backend route (`agent_stage_kinds` frontmatter),
+    # as sorted (lowercased state, kind) pairs. Applies only to the named
+    # stages and never to the Verify stage or the verifier backend: see
+    # `helpers.ticket_stage_kinds_problem`. Unlike an `agent_kind` pin it
+    # leaves stage ownership and every other lane's backend in force.
+    stage_kinds: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    # Set when `agent_stage_kinds` is present but malformed: the ticket is
+    # rejected for dispatch rather than silently routed by the lane map.
+    stage_kinds_error: str | None = None
+
+    def stage_kind_for(self, state: str | None) -> str | None:
+        key = (state or "").strip().lower()
+        return next((kind for stage, kind in self.stage_kinds if stage == key), None)
 
     def to_template_dict(self) -> dict[str, Any]:
         """§12.2 — convert keys to strings, preserve nested arrays/maps."""
