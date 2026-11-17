@@ -152,3 +152,60 @@ def test_board_card_exposes_the_parsed_route(tmp_path: Path) -> None:
     assert (plain["agent_stage_kinds"], plain["agent_stage_kinds_error"]) == ({}, "")
     bad = _issue_card(issue_from_file(_ticket(tmp_path, "agent_stage_kinds: opencode\n")))
     assert bad["agent_stage_kinds"] == {} and bad["agent_stage_kinds_error"]
+
+
+def _quota_exit_on_routed_ticket(monkeypatch, tmp_path: Path, issue):
+    """Run the real worker-exit error path for a quota error on `issue`."""
+    import asyncio
+    from datetime import datetime, timezone
+
+    from symphony.orchestrator import worker_exit
+    from symphony.orchestrator.entries import RunningEntry, _IssueDebug
+
+    cfg = _cfg()
+    cfg = replace(cfg, agent=replace(cfg.agent, fallback_kinds=("codex", "pi")))
+    orch = Orchestrator(WorkflowState(tmp_path / "WORKFLOW.md"))
+    entry = RunningEntry(
+        issue=issue,
+        started_at=datetime.now(timezone.utc),
+        retry_attempt=None,
+        worker_task=None,  # type: ignore[arg-type]
+        workspace_path=tmp_path / "ws" / issue.identifier,
+        agent_kind="opencode",
+    )
+    debug = _IssueDebug()
+    pinned: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        orch, "_pin_fallback_agent_kind", lambda _c, ident, kind: pinned.append((ident, kind)) or True
+    )
+    monkeypatch.setattr(orch._workflow_state, "current", lambda: cfg)
+
+    async def _run() -> None:
+        orch._loop = asyncio.get_running_loop()
+        worker_exit._handle_worker_error(
+            orch, issue.id, entry, debug, "turn_error", "usage limit reached for this plan"
+        )
+
+    asyncio.run(_run())
+    return cfg, orch, entry, debug, pinned
+
+
+def test_quota_fallback_never_pins_a_routed_ticket(monkeypatch, tmp_path: Path) -> None:
+    cfg, orch, entry, debug, pinned = _quota_exit_on_routed_ticket(
+        monkeypatch, tmp_path, _routed()
+    )
+    assert pinned == [], "a pin would conflict with the ticket's own route"
+    assert entry.issue.agent_kind is None and entry.agent_kind == "opencode"
+    assert entry.issue.stage_kinds == (("in progress", "opencode"),)
+    assert ticket_stage_kinds_problem(cfg, entry.issue) is None, "route stays valid"
+    assert orch.is_paused(entry.issue.id) is True, "classified quota pause, not fallback"
+    assert entry.issue.id in orch._retry, "retry ownership is kept, not released"
+    assert "falling back" not in (debug.last_error or "")
+
+
+def test_quota_fallback_still_pins_an_unrouted_ticket(monkeypatch, tmp_path: Path) -> None:
+    _cfg_, orch, entry, _debug, pinned = _quota_exit_on_routed_ticket(
+        monkeypatch, tmp_path, _make_issue("In Progress")
+    )
+    assert pinned == [(entry.issue.identifier, "codex")]
+    assert orch.is_paused(entry.issue.id) is False
