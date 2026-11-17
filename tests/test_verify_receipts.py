@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import replace
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -331,10 +332,21 @@ def test_actual_turn_loop_attests_verify_then_gates_document(case, monkeypatch, 
     assert receipts.receipt_path(cfg, entry.issue).exists()
 
 
+@pytest.mark.skipif(not hasattr(os, "fchmod"), reason="POSIX mode bits only")
 def test_receipt_is_world_readable(case):
     o, cfg, entry, workspace, sha, board, notes, policy_file = case
     attest(case)
     assert receipts.receipt_path(cfg, entry.issue).stat().st_mode & 0o777 == 0o644
+
+
+def test_receipt_is_written_without_fchmod(case, monkeypatch):
+    # Windows: os.fchmod does not exist; the receipt must still be published.
+    o, cfg, entry, workspace, sha, board, notes, policy_file = case
+    monkeypatch.delattr(os, "fchmod", raising=False)
+    attest(case)
+    path = receipts.receipt_path(cfg, entry.issue)
+    assert json.loads(path.read_text())["schema"] == 1
+    assert not list(path.parent.glob(".receipt-*")), "no temporary left behind"
 
 
 def test_second_verify_invalidates_old_receipt_and_seeded_artifact(case):
