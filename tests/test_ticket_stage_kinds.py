@@ -140,3 +140,15 @@ def test_file_tracker_parses_and_flags_routes(tmp_path: Path) -> None:
         flagged = issue_from_file(_ticket(tmp_path, bad))
         assert flagged is not None and flagged.stage_kinds_error, bad
         assert ticket_stage_kinds_problem(_cfg(), flagged) == flagged.stage_kinds_error
+
+
+def test_board_card_exposes_the_parsed_route(tmp_path: Path) -> None:
+    from symphony.webapi import _issue_card
+
+    routed = issue_from_file(_ticket(tmp_path, 'agent_stage_kinds: {"In Progress": opencode}\n'))
+    card = _issue_card(routed)
+    assert (card["agent_stage_kinds"], card["agent_stage_kinds_error"]) == ({"in progress": "opencode"}, "")
+    plain = _issue_card(issue_from_file(_ticket(tmp_path, "")))
+    assert (plain["agent_stage_kinds"], plain["agent_stage_kinds_error"]) == ({}, "")
+    bad = _issue_card(issue_from_file(_ticket(tmp_path, "agent_stage_kinds: opencode\n")))
+    assert bad["agent_stage_kinds"] == {} and bad["agent_stage_kinds_error"]
