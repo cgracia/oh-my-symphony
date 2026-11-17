@@ -354,6 +354,7 @@ def issue_from_file(path: Path) -> Issue | None:
         _parse_blockers(front.get("blocked_by")),
         body,
     )
+    stage_kinds, stage_kinds_error = _parse_stage_kinds(front)
     return Issue(
         id=identifier,
         identifier=identifier,
@@ -372,9 +373,35 @@ def issue_from_file(path: Path) -> Issue | None:
         agent_kind=_parse_agent_kind(front),
         last_agent_kind=str(front.get("last_agent_kind") or "").strip().lower()
         or None,
+        stage_kinds=stage_kinds,
+        stage_kinds_error=stage_kinds_error,
         skills=normalize_skill_names(front.get("skills")),
         request=str(front.get("request") or "").strip() or None,
     )
+
+
+def _parse_stage_kinds(
+    front: dict[str, Any],
+) -> tuple[tuple[tuple[str, str], ...], str | None]:
+    """`agent_stage_kinds: {<state>: <kind>}` as sorted lowercased pairs.
+
+    Absent is `((), None)`. Any other shape is an error the orchestrator
+    rejects the ticket on: a route it cannot read must not fall back to
+    the lane map without anyone noticing."""
+    raw = front.get("agent_stage_kinds")
+    if raw is None:
+        return (), None
+    if not isinstance(raw, dict) or not raw:
+        return (), "agent_stage_kinds must be a non-empty mapping of state to kind"
+    pairs: dict[str, str] = {}
+    for state, kind in raw.items():
+        if not isinstance(state, str) or not state.strip() or not isinstance(kind, str) or not kind.strip():
+            return (), "agent_stage_kinds entries must map a state name to a kind name"
+        key = state.strip().lower()
+        if key in pairs:
+            return (), f"agent_stage_kinds names state {state!r} twice"
+        pairs[key] = kind.strip().lower()
+    return tuple(sorted(pairs.items())), None
 
 
 def _parse_agent_kind(front: dict[str, Any]) -> str | None:

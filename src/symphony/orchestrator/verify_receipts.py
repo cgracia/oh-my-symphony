@@ -334,6 +334,10 @@ def _write(target: Path, data: bytes) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(dir=target.parent, prefix=".receipt-")
     try:
+        # mkstemp makes 0600; read-only observers run as another uid (HACP #271).
+        # Windows has no fchmod and no POSIX mode bits to widen.
+        if hasattr(os, "fchmod"):
+            os.fchmod(fd, 0o644)
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
             handle.flush()

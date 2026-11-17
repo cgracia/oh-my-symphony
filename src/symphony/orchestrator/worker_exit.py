@@ -1020,11 +1020,24 @@ def _switch_backend_on_quota_error(
     the normal retry instead of pausing). A quota error with no untried
     fallback, or a tracker that cannot carry the pin, falls through to the
     existing retry/auto-pause decision.
+
+    A ticket carrying its own stage route (`agent_stage_kinds`) is never
+    re-pinned: a pin cannot combine with a route, so pinning would turn a
+    valid ticket into an `invalid_stage_route` one. It keeps the classified
+    quota pause instead, with its route and retry ownership intact.
     """
     core = _core()
     if cfg is None or not cfg.agent.fallback_kinds:
         return False
     if not core._is_quota_worker_error(reason, error):
+        return False
+    if entry.issue.stage_kinds or entry.issue.stage_kinds_error:
+        log.warning(
+            "backend_fallback_declined_stage_route",
+            issue_id=issue_id,
+            issue_identifier=entry.issue.identifier,
+            error=error,
+        )
         return False
     current = orch._entry_agent_kind(entry)
     debug.quota_exhausted_kinds.add(current)

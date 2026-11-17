@@ -179,6 +179,46 @@ def _requested_agent_kind(issue: Issue) -> str | None:
     return kind or None
 
 
+def ticket_stage_kinds_problem(cfg: ServiceConfig, issue: Issue) -> str | None:
+    """Why this ticket's own stage route (`agent_stage_kinds`) is refused, or None.
+
+    A ticket may route only stages the board already routes per stage, to a
+    supported backend, never the configured Verify stage and never to the
+    configured verifier backend: a per-ticket route can change who builds,
+    not who independently verifies (the Verify receipt contract stays the
+    workflow's). Combining it with an `agent_kind` pin is ambiguous and
+    refused too."""
+    if issue.stage_kinds_error:
+        return issue.stage_kinds_error
+    if not issue.stage_kinds:
+        return None
+    if not cfg.agent.stage_kinds:
+        return "agent_stage_kinds needs a board routed by agent.stage_kinds"
+    if _requested_agent_kind(issue) is not None:
+        return "agent_stage_kinds cannot be combined with an agent_kind pin"
+    active = {normalize_state(s) for s in cfg.tracker.active_states}
+    closure = cfg.raw.get("verify_closure") if isinstance(cfg.raw, dict) else None
+    verify_state = verifier = None
+    if isinstance(closure, dict):
+        verify_state = normalize_state(str(closure.get("verify_state") or "")) or None
+        verifier = str(closure.get("verifier_kind") or "").strip().lower() or None
+    for state, kind in issue.stage_kinds:
+        if state not in active:
+            return f"agent_stage_kinds routes {state!r}, which is not an active state"
+        if kind not in SUPPORTED_AGENT_KINDS:
+            return f"agent_stage_kinds routes {state!r} to unsupported kind {kind!r}"
+        if verify_state is not None and state == verify_state:
+            return f"agent_stage_kinds may not route the Verify stage {state!r}"
+        if verifier is not None and kind == verifier:
+            return f"agent_stage_kinds may not route a stage to the verifier backend {kind!r}"
+    return None
+
+
+def _ticket_stage_kind(issue: Issue, state: str | None) -> str | None:
+    """The ticket's own route for `state` (validated at eligibility)."""
+    return issue.stage_kind_for(state)
+
+
 def _stage_ownership_succession_terminal(cfg: ServiceConfig, to_state: str) -> bool:
     """True when `to_state` is a pipeline-succession terminal lane.
 
@@ -274,7 +314,9 @@ def _stage_ownership_rewind_state(
     for lane in _stage_ownership_crossed_lanes(
         cfg, from_state=from_state, to_state=to_state
     ):
-        owner = (cfg.agent.kind_for_state(lane, None) or "").strip().lower()
+        owner = (
+            cfg.agent.kind_for_state(lane, None, _ticket_stage_kind(issue, lane)) or ""
+        ).strip().lower()
         if owner != mover:
             return lane
     return None
@@ -316,7 +358,10 @@ def _config_for_issue_agent(cfg: ServiceConfig, issue: Issue) -> ServiceConfig:
             value=pin,
             issue=issue.identifier,
         )
-    kind = cfg.agent.kind_for_state(issue.state, pin)
+    problem = ticket_stage_kinds_problem(cfg, issue)
+    if problem is not None:
+        raise ConfigValidationError(problem, issue=issue.identifier)
+    kind = cfg.agent.kind_for_state(issue.state, pin, _ticket_stage_kind(issue, issue.state))
     if kind == cfg.agent.kind:
         return cfg
     return replace(cfg, agent=replace(cfg.agent, kind=kind))
