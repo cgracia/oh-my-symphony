@@ -156,6 +156,8 @@ from .helpers import (
     _rewind_budget_target_state,
     _notify_state_transition,
     _requested_agent_kind,
+    _ticket_stage_kind,
+    ticket_stage_kinds_problem,
     _sort_for_dispatch_fifo,
     _stage_ownership_rewind_state,
     _task_debug,
@@ -3634,7 +3636,9 @@ class Orchestrator:
         cfg = self._workflow_state.current()
         if cfg is None:
             return requested or ""
-        return cfg.agent.kind_for_state(entry.issue.state, requested)
+        return cfg.agent.kind_for_state(
+            entry.issue.state, requested, _ticket_stage_kind(entry.issue, entry.issue.state)
+        )
 
     # ------------------------------------------------------------------
     # operator-driven pause / resume
@@ -5961,6 +5965,19 @@ class Orchestrator:
                 "unsupported_agent",
                 f"unsupported agent kind: {requested_agent}",
             )
+        route_problem = ticket_stage_kinds_problem(cfg, issue)
+        if route_problem is not None:
+            log.warning(
+                "ticket_stage_kinds_refused",
+                issue_id=issue.id,
+                identifier=issue.identifier,
+                reason=route_problem,
+            )
+            return _EligibilityDecision(
+                _EligibilityDisposition.REJECT,
+                "invalid_stage_route",
+                f"invalid agent_stage_kinds: {route_problem}",
+            )
         return None
 
     def _eligibility_contention_decision(
@@ -6699,7 +6716,9 @@ class Orchestrator:
         resolved_attempt_kind = attempt_kind or (
             "retry" if attempt is not None else "initial"
         )
-        agent_kind = cfg.agent.kind_for_state(issue.state, _requested_agent_kind(issue))
+        agent_kind = cfg.agent.kind_for_state(
+            issue.state, _requested_agent_kind(issue), _ticket_stage_kind(issue, issue.state)
+        )
         acquisition = self._try_acquire_run_lease(
             cfg=cfg,
             issue=issue,
@@ -10092,7 +10111,9 @@ class Orchestrator:
                         attempt=None,
                         attempt_kind="startup-release-evidence-cleanup",
                         agent_kind=cfg.agent.kind_for_state(
-                            issue.state, _requested_agent_kind(issue)
+                            issue.state,
+                            _requested_agent_kind(issue),
+                            _ticket_stage_kind(issue, issue.state),
                         ),
                         release_required=True,
                     )

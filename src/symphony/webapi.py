@@ -527,6 +527,10 @@ def _issue_card(
         # Audit stamp on `stage_kinds`-routed boards, where the pin stays
         # empty on purpose (F-20).
         "last_agent_kind": issue.last_agent_kind or "",
+        # The ticket's own stage route as the daemon parsed it, so an
+        # external capacity check resolves the backend that will run.
+        "agent_stage_kinds": dict(issue.stage_kinds),
+        "agent_stage_kinds_error": issue.stage_kinds_error or "",
         "request": issue.request or "",
         "blocked_by": [
             {"identifier": b.identifier, "state": b.state} for b in issue.blocked_by

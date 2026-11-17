@@ -282,17 +282,26 @@ class AgentConfig:
             return fallback
         return value
 
-    def kind_for_state(self, state: str | None, ticket_pin: str | None = None) -> str:
+    def kind_for_state(
+        self,
+        state: str | None,
+        ticket_pin: str | None = None,
+        ticket_stage_kind: str | None = None,
+    ) -> str:
         """Resolve the backend for a dispatch of a ticket in `state`.
 
-        Precedence: ticket pin (`agent_kind` frontmatter) > `stage_kinds`
-        entry for the ticket's state > workflow-level `kind`. Explicit
-        dispatch arguments outrank all three and are applied by callers
-        before reaching this helper.
+        Precedence: ticket pin (`agent_kind` frontmatter) > the ticket's
+        own route for this stage (`agent_stage_kinds` frontmatter) >
+        `stage_kinds` entry for the ticket's state > workflow-level
+        `kind`. Explicit dispatch arguments outrank all of them and are
+        applied by callers before reaching this helper.
         """
         pin = (ticket_pin or "").strip().lower()
         if pin:
             return pin
+        routed = (ticket_stage_kind or "").strip().lower()
+        if routed:
+            return routed
         stage = self.stage_kinds.get(_normalize_state_key(state or ""))
         if stage:
             return stage
