@@ -302,6 +302,9 @@ def build_service_config(
         fail_on_warning_patterns=bool(
             hooks_raw.get("fail_on_warning_patterns", False)
         ),
+        pending_retry_exit=_validated_pending_retry_exit(
+            hooks_raw.get("pending_retry_exit", 0)
+        ),
     )
 
     agent_raw = cfg.get("agent") or {}
@@ -905,6 +908,37 @@ def _validated_positive_or_default(value: Any, default: int, *, name: str) -> in
         ) from exc
     if ivalue <= 0:
         raise ConfigValidationError(f"{name} must be a positive integer", value=value)
+    return ivalue
+
+
+def _validated_pending_retry_exit(value: Any) -> int:
+    """`hooks.pending_retry_exit` — 0 (off) or a reserved user exit code.
+
+    Only 64–125 is accepted: below 64 collides with shell/signal-adjacent
+    meanings (and 1/2 are ordinary failure), above 125 the shell's own exit
+    status encoding (128+n signal, 126/127) makes the code unreadable to the
+    hook runner. Anything else fails validation rather than silently
+    reclassifying hook failures.
+    """
+    if value is None:
+        return 0
+    if isinstance(value, bool):
+        raise ConfigValidationError(
+            "hooks.pending_retry_exit must be 0 or an exit code in 64..125",
+            value=value,
+        )
+    try:
+        ivalue = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ConfigValidationError(
+            "hooks.pending_retry_exit must be 0 or an exit code in 64..125",
+            value=value,
+        ) from exc
+    if ivalue != 0 and not 64 <= ivalue <= 125:
+        raise ConfigValidationError(
+            "hooks.pending_retry_exit must be 0 or an exit code in 64..125",
+            value=value,
+        )
     return ivalue
 
 

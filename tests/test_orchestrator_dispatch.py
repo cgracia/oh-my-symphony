@@ -1163,7 +1163,7 @@ def test_stale_zombie_finally_skips_worker_exit_handler(monkeypatch):
             await release_workspace_create.wait()
             raise RuntimeError("zombie workspace create resumed")
 
-    async def _capture_exit(issue_id, reason, error, *, owning_task=None):
+    async def _capture_exit(issue_id, reason, error, *, owning_task=None, exit_code=None):
         exit_owners.append(owning_task)
 
     async def _park() -> None:
@@ -1251,6 +1251,7 @@ def test_worker_exit_rechecks_identity_after_finally_gate(monkeypatch):
             *,
             owning_task=None,
             defer_lease_finish=False,
+            exit_code=None,
         ):
             entered_exit_impl.set()
             await release_exit_impl.wait()
@@ -1260,6 +1261,7 @@ def test_worker_exit_rechecks_identity_after_finally_gate(monkeypatch):
                 error,
                 owning_task=owning_task,
                 defer_lease_finish=defer_lease_finish,
+                exit_code=exit_code,
             )
 
         monkeypatch.setattr(orch, "_on_worker_exit_impl", _delayed_exit_impl)
@@ -1324,7 +1326,7 @@ def test_cancelled_worker_finally_passes_its_task_identity_through_shield(monkey
             entered_workspace_create.set()
             await asyncio.Event().wait()
 
-    async def _capture_exit(issue_id, reason, error, *, owning_task=None):
+    async def _capture_exit(issue_id, reason, error, *, owning_task=None, exit_code=None):
         exit_owners.append(owning_task)
 
     monkeypatch.setattr(
@@ -1362,7 +1364,7 @@ def test_orphaned_worker_finally_skips_worker_exit_handler(monkeypatch):
     issue = _issue("MT-1", state="Todo")
     exit_owners: list[asyncio.Task[None] | None] = []
 
-    async def _capture_exit(issue_id, reason, error, *, owning_task=None):
+    async def _capture_exit(issue_id, reason, error, *, owning_task=None, exit_code=None):
         exit_owners.append(owning_task)
 
     async def _run() -> None:
@@ -1458,7 +1460,7 @@ def test_worker_task_done_logs_exception_from_stale_pop_race(monkeypatch):
         lambda message, **fields: errors.append({"message": message, **fields}),
     )
 
-    async def _boom_exit(issue_id, reason, error, *, owning_task=None):
+    async def _boom_exit(issue_id, reason, error, *, owning_task=None, exit_code=None):
         # Stand-in for `_on_worker_exit_impl` popping the entry and then
         # raising (e.g. a downstream persist failure) before the
         # done-callback ever runs.

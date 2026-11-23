@@ -20,6 +20,16 @@ CONTINUATION_RETRY_DELAY_MS = 1_000  # §7.1
 PAUSED_RETRY_HOLD_MS = 5_000  # operator-pause re-park cadence (_on_retry_timer)
 RETRY_BASE_MS = 10_000  # §8.4
 
+# §16.6 pending-condition waits (HACP #301). A `before_run` hook exit code
+# declared via `hooks.pending_retry_exit` means "a precondition I own is
+# legitimately not met yet; re-run me later". It schedules a cap-exempt,
+# non-slot-holding wait instead of an error retry, so a slow required CI
+# never burns `agent.max_retries` and never needs an operator resume.
+# Backoff 60s → 120s → 300s cap per wake; the whole wait escalates back to
+# the ordinary legible pause after CI_WAIT_MAX_SECONDS of wall clock.
+CI_WAIT_RETRY_DELAYS_MS = (60_000, 120_000, 300_000)
+CI_WAIT_MAX_SECONDS = 2 * 60 * 60
+
 # Grace window after `worker_task.cancel()` before we forcibly remove the
 # entry from `_running`. A worker stuck on a non-cancellable await (e.g. a
 # fork that never returns, a DNS lookup, a misbehaving subprocess) would

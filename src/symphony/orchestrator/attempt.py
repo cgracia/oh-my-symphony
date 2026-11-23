@@ -129,6 +129,28 @@ class _AttemptExit:
 
     outcome: str
     error: str | None = None
+    # The structural `before_run` exit code when the outcome is
+    # ``before_run_error`` (HACP #301). Read from the hook runner's
+    # ``SymphonyError.context`` — never parsed out of the message text,
+    # which embeds hook stderr and could forge a suffix.
+    exit_code: int | None = None
+
+
+def _hook_exit_code(exc: BaseException) -> int | None:
+    """The hook runner's structural return code, or ``None``.
+
+    ``WorkspaceManager._run_hook`` raises ``SymphonyError(..., returncode=rc)``
+    for a non-zero hook exit. Only that ``context`` slot is trusted: the
+    rendered message contains the hook's stderr (external tool output), so a
+    text-based ``returncode=…`` match would be forgeable.
+    """
+    context = getattr(exc, "context", None)
+    if not isinstance(context, dict):
+        return None
+    code = context.get("returncode")
+    if isinstance(code, bool) or not isinstance(code, int) or code <= 0:
+        return None
+    return code
 
 
 class _TurnFlow(Enum):
@@ -182,11 +204,13 @@ async def run_agent_attempt(
     running_issue_id = issue.id
     outcome: str = "normal"
     error: str | None = None
+    exit_code: int | None = None
     try:
         early_exit = await _run_attempt(orch, issue, attempt, cfg)
         if early_exit is not None:
             outcome = early_exit.outcome
             error = early_exit.error
+            exit_code = early_exit.exit_code
     except asyncio.CancelledError:
         outcome = "shutdown_interrupted" if orch._stopping else "cancelled"
         error = None
@@ -251,7 +275,11 @@ async def run_agent_attempt(
             entry.exit_started_at = datetime.now(timezone.utc)
             await asyncio.shield(
                 orch._on_worker_exit(
-                    running_issue_id, outcome, error, owning_task=owning_task
+                    running_issue_id,
+                    outcome,
+                    error,
+                    owning_task=owning_task,
+                    exit_code=exit_code,
                 )
             )
 
@@ -332,7 +360,7 @@ async def _start_attempt(
     try:
         await orch._workspace_manager.before_run(workspace.path)
     except Exception as exc:
-        return _AttemptExit("before_run_error", str(exc))
+        return _AttemptExit("before_run_error", str(exc), _hook_exit_code(exc))
 
     client = _build_attempt_backend(orch, running_issue_id, issue, cfg, workspace)
     # Expose the live backend to `_on_codex_event` so the stall-progress
@@ -801,7 +829,7 @@ async def _run_turn(
         try:
             await _workspace_manager(orch).before_run(st.workspace.path)
         except Exception as exc:
-            return _AttemptExit("before_run_error", str(exc))
+            return _AttemptExit("before_run_error", str(exc), _hook_exit_code(exc))
     orch._sync_backend_agent_pid(
         st.running_issue_id, _core()._backend_agent_pid(st.client)
     )
