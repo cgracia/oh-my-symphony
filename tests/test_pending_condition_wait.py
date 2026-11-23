@@ -41,6 +41,7 @@ from test_orchestrator_dispatch import (
     _issue,
     _make_config,
     _orch,
+    _stub_workflow_state_returning,
 )
 
 
@@ -606,6 +607,106 @@ def test_worker_body_propagates_structural_hook_exit_code(tmp_path, monkeypatch)
         assert built == []
         assert orch.is_paused(issue.id) is False
         assert orch._retry[issue.id].kind == "ci_wait"
+        _drain_retry(orch, issue)
+
+    asyncio.run(_run())
+
+
+def test_in_turn_pending_through_scheduled_wait_to_green_resume(
+    tmp_path, monkeypatch
+):
+    """The complete #301 composition the Codex finding exposed.
+
+    In-turn pending (the model records the helper's exit 75 and ends the
+    turn normally, without handoff) → normal continuation → the next
+    turn's `before_run` observes pending (exit 75, zero model turns) →
+    the scheduled `ci_wait` wake → a green `before_run` → the model turn
+    resumes (backend construction is reached). No owner action and no
+    pause anywhere on the pending legs.
+    """
+    cfg = _pending_cfg()
+    orch = _orch()
+    issue = _issue("MT-CI-12", state="In Progress")
+    registry = RunRegistry(tmp_path / ".symphony" / "state.db")
+    built: list[str] = []
+
+    class _Workspace:
+        path = Path("/tmp/ws-fake")
+
+    class _GatedWorkspaceManager:
+        """`before_run` raises the hook runner's exit-75 error until CI is
+        green; the in-turn observation at the start is the model's own
+        helper run inside turn 1, which is why turn 1 exits normally."""
+
+        def __init__(self) -> None:
+            self.pending_wakes = 1
+
+        def path_for(self, identifier):
+            return Path("/tmp/ws-fake") / identifier
+
+        async def create_or_reuse(self, identifier):
+            return _Workspace()
+
+        async def before_run(self, path):
+            if self.pending_wakes > 0:
+                self.pending_wakes -= 1
+                raise SymphonyError(
+                    "hook before_run exited 75; stderr: document-ci: pending",
+                    hook="before_run",
+                    returncode=75,
+                )
+
+        async def after_run_best_effort(self, path):
+            return None
+
+    def _build_backend(*_args, **_kwargs):
+        # Proving the green wake starts a model turn: backend construction
+        # is the first act after `before_run` passes. The sentinel error is
+        # the stub's artifact (it becomes an ordinary error exit below);
+        # the turn mechanics past this point are pre-existing machinery.
+        built.append("model-turn")
+        raise RuntimeError("green wake reached backend construction")
+
+    async def _run() -> None:
+        orch._loop = asyncio.get_running_loop()
+        orch._run_registry = registry
+        monkeypatch.setattr(orch, "_workspace_manager", _GatedWorkspaceManager())
+        monkeypatch.setattr(orch, "_build_agent_backend", _build_backend)
+        _stub_workflow_state_returning(orch, cfg, monkeypatch)
+
+        # Turn 1 ends normally: the model recorded the in-turn pending
+        # observation and stopped without handoff.
+        _install_running_entry(orch, issue)
+        await orch._on_worker_exit(issue.id, reason="normal", error=None)
+        assert orch._retry[issue.id].kind == "continuation"
+        captured = await _fire_retry(orch, issue, monkeypatch)
+        assert captured == {"attempt": 1, "attempt_kind": "continuation"}
+        assert orch.is_paused(issue.id) is False
+
+        # Turn 2 never starts: `before_run` observes pending → the
+        # orchestrator-owned scheduled wait, not a pause, not a model turn.
+        # (The entry takes the dispatched attempt, exactly as `_dispatch`
+        # would have set it.)
+        entry = _install_running_entry(orch, issue)
+        entry.retry_attempt = captured["attempt"]
+        await orch._run_agent_attempt(issue, captured["attempt"], cfg)
+        assert built == []
+        wait = orch._retry[issue.id]
+        assert wait.kind == "ci_wait"
+        assert wait.attempt == 1  # the continuation's attempt, passed through
+        assert orch.is_paused(issue.id) is False
+        assert issue.id in orch._ci_wait_started_at
+        captured = await _fire_retry(orch, issue, monkeypatch)
+        assert captured == {"attempt": 1, "attempt_kind": "ci_wait"}
+
+        # Green wake: `before_run` passes and the model turn resumes.
+        entry = _install_running_entry(orch, issue)
+        entry.retry_attempt = captured["attempt"]
+        await orch._run_agent_attempt(issue, captured["attempt"], cfg)
+        assert built == ["model-turn"]
+        # The non-pending exit ended the open wait state.
+        assert issue.id not in orch._ci_wait_started_at
+        assert issue.id not in orch._ci_wait_wakeups
         _drain_retry(orch, issue)
 
     asyncio.run(_run())
