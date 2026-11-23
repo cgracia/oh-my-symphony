@@ -60,6 +60,7 @@ from .constants import (
     CI_WAIT_MAX_SECONDS,
     CI_WAIT_RETRY_DELAYS_MS,
     CONTINUATION_RETRY_DELAY_MS,
+    PAUSED_RETRY_HOLD_MS,
     RETRY_BASE_MS,
 )
 from .entries import ExitOwnershipCheck, RunningEntry, _IssueDebug
@@ -996,7 +997,11 @@ def _handle_pending_condition_wait(
     The hook already proved its precondition is legitimately unmet (HACP
     #301: required CI pending at the exact candidate head). The wait is
     owned by this scheduler alone: it does not pause the ticket, does not
-    consume `agent.max_retries`, and does not hold a concurrency slot. Each
+    consume `agent.max_retries`, and does not hold a concurrency slot. The
+    failure retry budget passes through the wait untouched: each scheduled
+    wake carries the entry's current attempt unmodified and neither writes
+    nor clears persisted retry state, so a later failure — or the
+    escalation below — accounts exactly as if the wait never happened. Each
     wake re-runs the full `before_run` gate stack — including the hook's own
     exact-head observation — so no stale evidence is ever accepted across
     the wait. Escalation stays bounded: after `CI_WAIT_MAX_SECONDS` of wall
@@ -1004,7 +1009,6 @@ def _handle_pending_condition_wait(
     """
     core = _core()
     identifier = entry.issue.identifier
-    cfg = orch._workflow_state.current()
     now = time.monotonic()
     started = orch._ci_wait_started_at.get(issue_id)
     if started is None:
@@ -1036,14 +1040,17 @@ def _handle_pending_condition_wait(
             waited_seconds=round(waited, 1),
             pause_reason=pause_reason,
         )
-        next_attempt = (entry.retry_attempt or 0) + 1
-        cap = cfg.agent.max_retry_backoff_ms if cfg is not None else 300_000
-        delay_ms = min(RETRY_BASE_MS * (2 ** (next_attempt - 1)), cap)
+        # Ordinary operator-pause re-park at the `_repark_paused_retry`
+        # cadence. The attempt is the preserved one, NOT incremented — the
+        # escalation is a wait timeout, not a failure — so the budget the
+        # operator resumes into is exactly the one the wait started with,
+        # and `_retry_cap_exceeded` cannot reroute this pause into the
+        # max-retries terminal escalation.
         orch._schedule_retry(
             issue_id,
             identifier=identifier,
-            attempt=next_attempt,
-            delay_ms=delay_ms,
+            attempt=(entry.retry_attempt or 0),
+            delay_ms=PAUSED_RETRY_HOLD_MS,
             error=pause_reason,
             kind="retry",
             touched_files=frozenset(orch._touched_files_for(entry.issue)),
@@ -1066,11 +1073,14 @@ def _handle_pending_condition_wait(
     )
     # `holds_slot=False`: a ticket waiting on an external condition is not
     # doing work and must not starve the board of execution capacity (same
-    # reasoning as positively classified provider-capacity parks).
+    # reasoning as positively classified provider-capacity parks). The
+    # attempt passes through UNMODIFIED: a pending wake is not a failure,
+    # must not inflate the ordinary retry budget, and must not overwrite
+    # the persisted failure history (see `_install_retry`'s ci_wait branch).
     orch._schedule_retry(
         issue_id,
         identifier=identifier,
-        attempt=(entry.retry_attempt or 0) + 1,
+        attempt=(entry.retry_attempt or 0),
         delay_ms=delay_ms,
         error=detail,
         kind="ci_wait",

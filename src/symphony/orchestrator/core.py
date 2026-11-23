@@ -8629,9 +8629,18 @@ class Orchestrator:
         debug = self._issue_debug.setdefault(issue_id, _IssueDebug())
         debug.current_retry_attempt = attempt
         debug.current_attempt_kind = kind
-        if kind in ("continuation", "ci_wait"):
+        if kind == "continuation":
             self._persisted_retry_attempts.pop(issue_id, None)
             self._clear_issue_flags(issue_id, retry_attempt=True)
+        elif kind == "ci_wait":
+            # A pending-condition wait (HACP #301) must leave the failure
+            # budget exactly as it found it: no write-through (the wake's
+            # pass-through attempt is not a failure count) and no reset
+            # (genuine failure history must survive the wait, including
+            # across a restart — dispatch restores the attempt from
+            # `_persisted_retry_attempts`). The wake's backoff comes from
+            # the orchestrator's in-memory wakeup counter, not this value.
+            pass
         else:
             self._persisted_retry_attempts[issue_id] = attempt
             self._set_issue_flags(issue_id, retry_attempt=attempt)
