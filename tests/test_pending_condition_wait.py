@@ -711,3 +711,119 @@ def test_in_turn_pending_through_scheduled_wait_to_green_resume(
 
     asyncio.run(_run())
 
+
+def test_green_gate_resets_the_wait_clock_for_a_second_pending_episode(
+    tmp_path, monkeypatch
+):
+    """Codex P2 on fork PR #8: clear the wait bookkeeping on gate success.
+
+    A green `before_run` must close the open pending wait *at the gate*,
+    before any model turn: a second pending episode inside the same
+    multi-turn attempt (CI green at minute ~119, the model pushes a new
+    candidate, the next gate observes that head pending again) then earns
+    its own wall-clock bound and backoff rung. Without the clear, the
+    aged timestamp makes the second observation trip the 2h operator
+    pause immediately.
+    """
+    cfg = _pending_cfg()
+    orch = _orch()
+    issue = _issue("MT-CI-13", state="In Progress")
+    registry = RunRegistry(tmp_path / ".symphony" / "state.db")
+    cleared_at_build: list[bool] = []
+
+    class _Workspace:
+        path = Path("/tmp/ws-fake")
+
+    class _ScriptedWorkspaceManager:
+        """Gate outcomes in dispatch order: pending, green, pending."""
+
+        def __init__(self) -> None:
+            self.script = [75, None, 75]
+
+        def path_for(self, identifier):
+            return Path("/tmp/ws-fake") / identifier
+
+        async def create_or_reuse(self, identifier):
+            return _Workspace()
+
+        async def before_run(self, path):
+            outcome = self.script.pop(0)
+            if outcome is not None:
+                raise SymphonyError(
+                    f"hook before_run exited {outcome}; stderr: document-ci: pending",
+                    hook="before_run",
+                    returncode=outcome,
+                )
+
+        async def after_run_best_effort(self, path):
+            return None
+
+    def _build_backend(*_args, **_kwargs):
+        # Runs inside `_start_attempt`, immediately after a successful
+        # `before_run` and before any exit handler: the snapshot proves
+        # the *gate* closed the wait, not the error exit that the
+        # sentinel RuntimeError produces afterwards.
+        cleared_at_build.append(
+            issue.id not in orch._ci_wait_started_at
+            and issue.id not in orch._ci_wait_wakeups
+        )
+        raise RuntimeError("green gate reached backend construction")
+
+    async def _run() -> None:
+        orch._loop = asyncio.get_running_loop()
+        orch._run_registry = registry
+        monkeypatch.setattr(
+            orch, "_workspace_manager", _ScriptedWorkspaceManager()
+        )
+        monkeypatch.setattr(orch, "_build_agent_backend", _build_backend)
+        _stub_workflow_state_returning(orch, cfg, monkeypatch)
+
+        # Episode 1: the gate observes pending — the wait clock starts.
+        entry = _install_running_entry(orch, issue)
+        entry.retry_attempt = 0
+        await orch._run_agent_attempt(issue, 0, cfg)
+        assert orch._retry[issue.id].kind == "ci_wait"
+        assert issue.id in orch._ci_wait_started_at
+
+        # Age the episode to minute ~119 with the backoff pinned at the
+        # top rung: exactly the state a second episode must not inherit.
+        orch._ci_wait_started_at[issue.id] = (
+            time.monotonic() - CI_WAIT_MAX_SECONDS + 60
+        )
+        orch._ci_wait_wakeups[issue.id] = 999
+        captured = await _fire_retry(orch, issue, monkeypatch)
+
+        # Green leg: the gate passes and closes the wait before the
+        # model turn (backend construction) starts. The sentinel
+        # RuntimeError then ends the attempt as an ordinary worker
+        # error, which pauses the ticket — a test artifact; the
+        # harness's standard resume advances it (as in the other
+        # wake tests).
+        entry = _install_running_entry(orch, issue)
+        entry.retry_attempt = captured["attempt"]
+        await orch._run_agent_attempt(issue, captured["attempt"], cfg)
+        assert cleared_at_build == [True]
+        captured = await _fire_retry(orch, issue, monkeypatch)
+
+        # Episode 2 — a fresh candidate head pending again: a fresh
+        # 2h bound (no instant operator pause off the aged timestamp)
+        # and a fresh backoff rung (60s, not the inherited top rung).
+        assert orch.is_paused(issue.id) is False
+        entry = _install_running_entry(orch, issue)
+        entry.retry_attempt = captured["attempt"]
+        before = time.monotonic()
+        await orch._run_agent_attempt(issue, captured["attempt"], cfg)
+        wait = orch._retry[issue.id]
+        assert wait.kind == "ci_wait"
+        assert orch.is_paused(issue.id) is False
+        assert orch._ci_wait_wakeups[issue.id] == 1
+        due_in = wait.due_at_ms - before * 1000.0
+        assert CI_WAIT_RETRY_DELAYS_MS[0] - 5_000 <= due_in <= (
+            CI_WAIT_RETRY_DELAYS_MS[0] + 5_000
+        )
+        # The fresh clock is this episode's start, not the aged stamp.
+        assert orch._ci_wait_started_at[issue.id] >= before
+        _drain_retry(orch, issue)
+
+    asyncio.run(_run())
+

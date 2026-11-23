@@ -153,6 +153,21 @@ def _hook_exit_code(exc: BaseException) -> int | None:
     return code
 
 
+def _close_pending_wait(orch: Orchestrator, issue_id: str) -> None:
+    """A successful ``before_run`` closes any open pending-condition wait.
+
+    The awaited condition is met, so a *later* pending episode — e.g. CI
+    pending again on a fresh candidate head pushed by this very attempt's
+    model turns — must earn its own wall-clock bound and backoff rung
+    instead of inheriting this episode's timestamp and wakeup count
+    (HACP #301 review: without this, a green wake at minute ~119 followed
+    by an in-turn new-candidate push made the next pending observation
+    trip the 2h operator pause immediately).
+    """
+    orch._ci_wait_started_at.pop(issue_id, None)
+    orch._ci_wait_wakeups.pop(issue_id, None)
+
+
 class _TurnFlow(Enum):
     """Turn-loop control returned by phases that may end the loop cleanly."""
 
@@ -361,6 +376,7 @@ async def _start_attempt(
         await orch._workspace_manager.before_run(workspace.path)
     except Exception as exc:
         return _AttemptExit("before_run_error", str(exc), _hook_exit_code(exc))
+    _close_pending_wait(orch, running_issue_id)
 
     client = _build_attempt_backend(orch, running_issue_id, issue, cfg, workspace)
     # Expose the live backend to `_on_codex_event` so the stall-progress
@@ -830,6 +846,7 @@ async def _run_turn(
             await _workspace_manager(orch).before_run(st.workspace.path)
         except Exception as exc:
             return _AttemptExit("before_run_error", str(exc), _hook_exit_code(exc))
+        _close_pending_wait(orch, st.running_issue_id)
     orch._sync_backend_agent_pid(
         st.running_issue_id, _core()._backend_agent_pid(st.client)
     )
