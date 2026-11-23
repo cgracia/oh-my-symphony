@@ -17,6 +17,11 @@
                                   gate, terminal post-processing, continuation
                                   scheduling, ``max_turns`` stop).
    * ``"shutdown_interrupted"`` → ``_handle_shutdown_interrupted``.
+   * declared pending condition → ``_handle_pending_condition_wait``: a
+                                   ``before_run`` exit equal to
+                                   ``hooks.pending_retry_exit`` schedules a
+                                   bounded, cap-exempt, non-slot-holding wait
+                                   (HACP #301) instead of an error retry.
    * anything else              → ``_handle_worker_error``: retry vs auto-pause
                                   classification and exponential back-off.
 4. emit     — ``_emit_worker_exit``: the final ``worker_exit`` log line plus
@@ -41,6 +46,7 @@ same as the pre-split method.
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, cast
@@ -50,7 +56,13 @@ from ..issue import Issue, normalize_state
 from ..logging import get_logger
 from ..workflow import ServiceConfig
 from ..workspace import HISTORY_PUSH_FAILED, HistoryGateResult
-from .constants import CONTINUATION_RETRY_DELAY_MS, RETRY_BASE_MS
+from .constants import (
+    CI_WAIT_MAX_SECONDS,
+    CI_WAIT_RETRY_DELAYS_MS,
+    CONTINUATION_RETRY_DELAY_MS,
+    PAUSED_RETRY_HOLD_MS,
+    RETRY_BASE_MS,
+)
 from .entries import ExitOwnershipCheck, RunningEntry, _IssueDebug
 from .helpers import (
     _max_turns_exhausted_target_state,
@@ -95,6 +107,7 @@ async def handle_worker_exit(
     *,
     owning_task: asyncio.Task[None] | None = None,
     defer_lease_finish: bool = False,
+    exit_code: int | None = None,
 ) -> None:
     entry = _pop_running_entry(orch, issue_id, reason, owning_task=owning_task)
     if entry is None:
@@ -200,6 +213,7 @@ async def handle_worker_exit(
         return
     debug = _record_exit_accounting(orch, issue_id, entry, reason, error)
 
+    pending_wait = _is_pending_condition_wait(orch, reason, exit_code)
     if terminal_cancelled:
         # Workspace cleanup remains owned by reconcile. This is cancellation,
         # not a successful completion: do not merge or invoke Done hooks here.
@@ -213,8 +227,17 @@ async def handle_worker_exit(
             return
     elif reason == "shutdown_interrupted":
         _handle_shutdown_interrupted(issue_id, entry, debug)
+    elif pending_wait:
+        _handle_pending_condition_wait(orch, issue_id, entry, debug, error, exit_code)
     else:
         _handle_worker_error(orch, issue_id, entry, debug, reason, error)
+    if not pending_wait:
+        # A non-pending exit ends any open pending-condition wait: the ticket
+        # either progressed past its `before_run` condition or failed
+        # somewhere else, so a later wait starts a fresh wall-clock bound
+        # (HACP #301).
+        orch._ci_wait_started_at.pop(issue_id, None)
+        orch._ci_wait_wakeups.pop(issue_id, None)
     await _emit_worker_exit(orch, issue_id, entry, reason, error)
 
 
@@ -933,6 +956,136 @@ def _handle_shutdown_interrupted(
         "worker_shutdown_interrupted",
         issue_id=issue_id,
         issue_identifier=entry.issue.identifier,
+    )
+
+
+# ----------------------------------------------------------------------
+# phase 3c-pre — declared pending condition: scheduled wait (HACP #301)
+# ----------------------------------------------------------------------
+
+
+def _is_pending_condition_wait(
+    orch: Orchestrator, reason: str, exit_code: int | None
+) -> bool:
+    """A `before_run` exit the workflow declared as "condition pending".
+
+    Positive identification only: the reason must be exactly the
+    `before_run` hook failure, the structural exit code (from the hook
+    runner's `SymphonyError.context`, never parsed from stderr text) must
+    equal `hooks.pending_retry_exit`, and the declaration must be enabled
+    (non-zero). Every other non-zero exit — unknown evidence, a refused
+    candidate, a crashed hook, any other exit code — keeps the ordinary
+    worker-error path below.
+    """
+    if reason != "before_run_error" or not isinstance(exit_code, int):
+        return False
+    cfg = orch._workflow_state.current()
+    declared = cfg.hooks.pending_retry_exit if cfg is not None else 0
+    return declared > 0 and exit_code == declared
+
+
+def _handle_pending_condition_wait(
+    orch: Orchestrator,
+    issue_id: str,
+    entry: RunningEntry,
+    debug: _IssueDebug,
+    error: str | None,
+    exit_code: int | None,
+) -> None:
+    """Schedule a bounded, cap-exempt wait instead of an error retry.
+
+    The hook already proved its precondition is legitimately unmet (HACP
+    #301: required CI pending at the exact candidate head). The wait is
+    owned by this scheduler alone: it does not pause the ticket, does not
+    consume `agent.max_retries`, and does not hold a concurrency slot. The
+    failure retry budget passes through the wait untouched: each scheduled
+    wake carries the entry's current attempt unmodified and neither writes
+    nor clears persisted retry state, so a later failure — or the
+    escalation below — accounts exactly as if the wait never happened. Each
+    wake re-runs the full `before_run` gate stack — including the hook's own
+    exact-head observation — so no stale evidence is ever accepted across
+    the wait. Escalation stays bounded: after `CI_WAIT_MAX_SECONDS` of wall
+    clock the ticket falls back to the ordinary legible operator pause.
+    """
+    core = _core()
+    identifier = entry.issue.identifier
+    now = time.monotonic()
+    started = orch._ci_wait_started_at.get(issue_id)
+    if started is None:
+        started = now
+        orch._ci_wait_started_at[issue_id] = now
+    waited = now - started
+
+    if waited >= CI_WAIT_MAX_SECONDS:
+        orch._ci_wait_started_at.pop(issue_id, None)
+        orch._ci_wait_wakeups.pop(issue_id, None)
+        pause_reason = core._worker_error_pause_reason(
+            "before_run_error",
+            f"pending condition (exit {exit_code}) still unmet after "
+            f"{int(waited // 60)} minutes of scheduled wait",
+        )
+        debug.last_error = pause_reason
+        orch._paused_issue_ids.add(issue_id)
+        orch._pause_reasons[issue_id] = pause_reason
+        orch._set_issue_flags(
+            issue_id,
+            paused=True,
+            pause_reason=pause_reason,
+        )
+        log.warning(
+            "worker_pending_condition_wait_escalated",
+            issue_id=issue_id,
+            issue_identifier=identifier,
+            exit_code=exit_code,
+            waited_seconds=round(waited, 1),
+            pause_reason=pause_reason,
+        )
+        # Ordinary operator-pause re-park at the `_repark_paused_retry`
+        # cadence. The attempt is the preserved one, NOT incremented — the
+        # escalation is a wait timeout, not a failure — so the budget the
+        # operator resumes into is exactly the one the wait started with,
+        # and `_retry_cap_exceeded` cannot reroute this pause into the
+        # max-retries terminal escalation.
+        orch._schedule_retry(
+            issue_id,
+            identifier=identifier,
+            attempt=(entry.retry_attempt or 0),
+            delay_ms=PAUSED_RETRY_HOLD_MS,
+            error=pause_reason,
+            kind="retry",
+            touched_files=frozenset(orch._touched_files_for(entry.issue)),
+        )
+        return
+
+    wakeups = orch._ci_wait_wakeups.get(issue_id, 0)
+    orch._ci_wait_wakeups[issue_id] = wakeups + 1
+    delay_ms = CI_WAIT_RETRY_DELAYS_MS[min(wakeups, len(CI_WAIT_RETRY_DELAYS_MS) - 1)]
+    detail = f"before_run pending condition (exit {exit_code}); scheduled wait"
+    debug.last_error = detail
+    log.warning(
+        "worker_pending_condition_wait_scheduled",
+        issue_id=issue_id,
+        issue_identifier=identifier,
+        exit_code=exit_code,
+        delay_ms=delay_ms,
+        waited_seconds=round(waited, 1),
+        error=error,
+    )
+    # `holds_slot=False`: a ticket waiting on an external condition is not
+    # doing work and must not starve the board of execution capacity (same
+    # reasoning as positively classified provider-capacity parks). The
+    # attempt passes through UNMODIFIED: a pending wake is not a failure,
+    # must not inflate the ordinary retry budget, and must not overwrite
+    # the persisted failure history (see `_install_retry`'s ci_wait branch).
+    orch._schedule_retry(
+        issue_id,
+        identifier=identifier,
+        attempt=(entry.retry_attempt or 0),
+        delay_ms=delay_ms,
+        error=detail,
+        kind="ci_wait",
+        holds_slot=False,
+        touched_files=frozenset(orch._touched_files_for(entry.issue)),
     )
 
 

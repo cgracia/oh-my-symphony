@@ -100,6 +100,14 @@ class HooksConfig:
     # Doctor warning patterns are advisory by default. Workflows that treat
     # setup masking as release-blocking can opt into a fatal doctor result.
     fail_on_warning_patterns: bool = False
+    # Declared "condition pending, retry me later" exit code for the
+    # `before_run` hook (HACP #301: Document waiting on legitimately pending
+    # required CI). A non-zero `before_run` exit equal to this value is
+    # classified as a scheduled wait: cap-exempt (`agent.max_retries` does
+    # not apply), non-slot-holding, and bounded by a wall-clock ceiling that
+    # escalates back to the ordinary operator pause. 0 (the default) keeps
+    # legacy behavior: every non-zero `before_run` exit is a worker error.
+    pending_retry_exit: int = 0
 
 
 @dataclass(frozen=True)

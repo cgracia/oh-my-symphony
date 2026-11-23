@@ -1138,6 +1138,13 @@ class Orchestrator:
         self._paused_issue_ids: set[str] = set()
         self._pause_reasons: dict[str, str] = {}
         self._pause_events: dict[str, asyncio.Event] = {}
+        # §16.6 pending-condition waits (HACP #301): per-issue monotonic
+        # first-seen timestamp and wake count for `before_run` exits
+        # classified as "condition pending". In-memory only: a restart
+        # resets the wall-clock bound and the backoff, but never accepts
+        # stale evidence — each wake re-runs the hook's own observation.
+        self._ci_wait_started_at: dict[str, float] = {}
+        self._ci_wait_wakeups: dict[str, int] = {}
         # Rolling EMA of completion `total_tokens` per state. Keys are the
         # lowercased state name (normalize_state). Persisted to
         # `<workflow_dir>/.symphony/token_ema.json` so the soft budget the
@@ -8379,6 +8386,7 @@ class Orchestrator:
         error: str | None,
         *,
         owning_task: asyncio.Task[None] | None = None,
+        exit_code: int | None = None,
     ) -> None:
         # Treat the whole exit handler as in-flight. From the moment a worker
         # leaves `_running` until its terminal-state persist (or retry enqueue)
@@ -8396,6 +8404,7 @@ class Orchestrator:
                 error,
                 owning_task=owning_task,
                 defer_lease_finish=True,
+                exit_code=exit_code,
             )
         finally:
             if (
@@ -8419,6 +8428,7 @@ class Orchestrator:
         *,
         owning_task: asyncio.Task[None] | None = None,
         defer_lease_finish: bool = False,
+        exit_code: int | None = None,
     ) -> None:
         return await worker_exit.handle_worker_exit(
             self,
@@ -8427,6 +8437,7 @@ class Orchestrator:
             error,
             owning_task=owning_task,
             defer_lease_finish=defer_lease_finish,
+            exit_code=exit_code,
         )
 
     def _force_eject_zombie(
@@ -8546,7 +8557,13 @@ class Orchestrator:
     ) -> bool:
         cfg = self._workflow_state.current()
         max_retries = cfg.agent.max_retries if cfg is not None else 0
-        if max_retries > 0 and retry_kind != "continuation" and attempt > max_retries:
+        # `continuation` is a clean advance, and `ci_wait` is a declared
+        # pending condition (HACP #301) — neither consumes the retry cap.
+        if (
+            max_retries > 0
+            and retry_kind not in ("continuation", "ci_wait")
+            and attempt > max_retries
+        ):
             log.error(
                 "agent_retry_cap_exhausted",
                 issue_id=issue_id,
@@ -8615,6 +8632,15 @@ class Orchestrator:
         if kind == "continuation":
             self._persisted_retry_attempts.pop(issue_id, None)
             self._clear_issue_flags(issue_id, retry_attempt=True)
+        elif kind == "ci_wait":
+            # A pending-condition wait (HACP #301) must leave the failure
+            # budget exactly as it found it: no write-through (the wake's
+            # pass-through attempt is not a failure count) and no reset
+            # (genuine failure history must survive the wait, including
+            # across a restart — dispatch restores the attempt from
+            # `_persisted_retry_attempts`). The wake's backoff comes from
+            # the orchestrator's in-memory wakeup counter, not this value.
+            pass
         else:
             self._persisted_retry_attempts[issue_id] = attempt
             self._set_issue_flags(issue_id, retry_attempt=attempt)
